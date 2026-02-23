@@ -1,0 +1,5 @@
+{
+  "name": "W Route",
+  "description": "3D endless runner game where an office clerk escapes. Features mobile controls, procedural generation, and Goyda shooting.",
+  "requestFramePermissions": []
+}
