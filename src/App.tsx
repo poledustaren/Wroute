@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import GameCanvas, { inputState } from './GameCanvas';
-import { Play, Skull, ArrowLeft, ArrowRight, ArrowUp, Zap, FileText } from 'lucide-react';
+import Level2Canvas, { inputState2 } from './Level2Canvas';
+import { Play, Skull, ArrowLeft, ArrowRight, ArrowUp, Zap, FileText, Cigarette } from 'lucide-react';
 
 export default function App() {
-  const [gameState, setGameState] = useState<'menu' | 'playing' | 'gameover'>('menu');
+  const [gameState, setGameState] = useState<'menu' | 'playing' | 'playing2' | 'gameover'>('menu');
   const [score, setScore] = useState(0);
   const [ammo, setAmmo] = useState(10);
   const [buffs, setBuffs] = useState<string[]>([]);
@@ -30,11 +31,32 @@ export default function App() {
     setGameState('playing');
   };
 
+  const startLevel2 = () => {
+    setScore(0);
+    setAmmo(30);
+    setBuffs([]);
+    setPopupText(null);
+    setGameId(prev => prev + 1);
+    setGameState('playing2');
+  };
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black text-white font-sans select-none">
       {/* Game Canvas */}
-      {gameState !== 'menu' && (
+      {gameState === 'playing' && (
         <GameCanvas 
+          key={gameId}
+          gameState={gameState} 
+          setGameState={setGameState} 
+          setScore={setScore} 
+          setAmmo={setAmmo}
+          setBuffs={setBuffs}
+          showPopup={showPopup}
+        />
+      )}
+      
+      {gameState === 'playing2' && (
+        <Level2Canvas 
           key={gameId}
           gameState={gameState} 
           setGameState={setGameState} 
@@ -46,7 +68,7 @@ export default function App() {
       )}
 
       {/* Popup Text */}
-      {popupText && gameState === 'playing' && (
+      {popupText && (gameState === 'playing' || gameState === 'playing2') && (
         <div key={popupText.id} className="absolute top-1/4 left-1/2 -translate-x-1/2 z-50 animate-bounce pointer-events-none w-full px-4 text-center">
           <span 
             className="text-2xl md:text-4xl font-black text-yellow-400 drop-shadow-[0_4px_4px_rgba(0,0,0,1)]" 
@@ -80,6 +102,13 @@ export default function App() {
               СТАРТ ИГРЫ
             </button>
             <button
+              onClick={startLevel2}
+              className="flex items-center justify-center gap-2 w-full py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 active:scale-95 transition-all"
+            >
+              <Cigarette size={20} />
+              УРОВЕНЬ 2 (КУРИЛКА)
+            </button>
+            <button
               onClick={startGame}
               className="flex items-center justify-center gap-2 w-full py-4 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 active:scale-95 transition-all"
             >
@@ -98,7 +127,7 @@ export default function App() {
           <p className="text-xl text-zinc-300 mb-8">Счет: {score}</p>
           
           <button
-            onClick={startGame}
+            onClick={() => setGameState('menu')}
             className="px-8 py-4 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 active:scale-95 transition-all"
           >
             ПЕРЕИГРАТЬ
@@ -107,7 +136,7 @@ export default function App() {
       )}
 
       {/* HUD & Mobile Controls */}
-      {gameState === 'playing' && (
+      {(gameState === 'playing' || gameState === 'playing2') && (
         <>
           {/* Top HUD */}
           <div className="absolute top-6 left-6 right-6 flex justify-between items-start z-40 pointer-events-none">
@@ -143,17 +172,17 @@ export default function App() {
             <div className="flex gap-4">
               <button
                 className="w-16 h-16 bg-white/10 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center active:bg-white/30 transition-colors"
-                onPointerDown={(e) => { e.preventDefault(); inputState.left = true; }}
-                onPointerUp={(e) => { e.preventDefault(); inputState.left = false; }}
-                onPointerLeave={(e) => { e.preventDefault(); inputState.left = false; }}
+                onPointerDown={(e) => { e.preventDefault(); inputState.left = true; inputState2.left = true; }}
+                onPointerUp={(e) => { e.preventDefault(); inputState.left = false; inputState2.left = false; }}
+                onPointerLeave={(e) => { e.preventDefault(); inputState.left = false; inputState2.left = false; }}
               >
                 <ArrowLeft size={28} />
               </button>
               <button
                 className="w-16 h-16 bg-white/10 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center active:bg-white/30 transition-colors"
-                onPointerDown={(e) => { e.preventDefault(); inputState.right = true; }}
-                onPointerUp={(e) => { e.preventDefault(); inputState.right = false; }}
-                onPointerLeave={(e) => { e.preventDefault(); inputState.right = false; }}
+                onPointerDown={(e) => { e.preventDefault(); inputState.right = true; inputState2.right = true; }}
+                onPointerUp={(e) => { e.preventDefault(); inputState.right = false; inputState2.right = false; }}
+                onPointerLeave={(e) => { e.preventDefault(); inputState.right = false; inputState2.right = false; }}
               >
                 <ArrowRight size={28} />
               </button>
@@ -167,17 +196,17 @@ export default function App() {
                     ? 'bg-red-500/80 border-red-400/50 active:bg-red-500'
                     : 'bg-zinc-500/50 border-zinc-400/50 opacity-50'
                 }`}
-                onPointerDown={(e) => { e.preventDefault(); inputState.goyda = true; }}
-                onPointerUp={(e) => { e.preventDefault(); inputState.goyda = false; }}
-                onPointerLeave={(e) => { e.preventDefault(); inputState.goyda = false; }}
+                onPointerDown={(e) => { e.preventDefault(); inputState.goyda = true; inputState2.shoot = true; }}
+                onPointerUp={(e) => { e.preventDefault(); inputState.goyda = false; inputState2.shoot = false; }}
+                onPointerLeave={(e) => { e.preventDefault(); inputState.goyda = false; inputState2.shoot = false; }}
               >
                 <Zap size={28} />
               </button>
               <button
                 className="w-16 h-16 bg-white/10 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center active:bg-white/30 transition-colors"
-                onPointerDown={(e) => { e.preventDefault(); inputState.jump = true; }}
-                onPointerUp={(e) => { e.preventDefault(); inputState.jump = false; }}
-                onPointerLeave={(e) => { e.preventDefault(); inputState.jump = false; }}
+                onPointerDown={(e) => { e.preventDefault(); inputState.jump = true; inputState2.up = true; }}
+                onPointerUp={(e) => { e.preventDefault(); inputState.jump = false; inputState2.up = false; }}
+                onPointerLeave={(e) => { e.preventDefault(); inputState.jump = false; inputState2.up = false; }}
               >
                 <ArrowUp size={28} />
               </button>
@@ -186,7 +215,7 @@ export default function App() {
           
           {/* Desktop Instructions */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-zinc-500 text-sm hidden lg:block font-mono">
-            [Arrows] Move & Jump • [G] Goyda
+            [Arrows] Move & Jump • [G] Goyda / Shoot
           </div>
         </>
       )}

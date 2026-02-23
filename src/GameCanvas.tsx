@@ -41,66 +41,106 @@ const createGoydaSprite = () => {
 const createPlayer = (color = 0x333333) => {
   const group = new THREE.Group();
   
-  // Body
-  const bodyGeo = new THREE.BoxGeometry(1, 1.5, 0.5);
-  const bodyMat = new THREE.MeshStandardMaterial({ color: color });
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
-  body.position.y = 1.5;
-  body.castShadow = true;
-  group.add(body);
-
   // Head
   const headGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
-  const headMat = new THREE.MeshStandardMaterial({ color: 0xffccaa });
-  const head = new THREE.Mesh(headGeo, headMat);
+  const skinMat = new THREE.MeshStandardMaterial({ color: 0xffccaa });
+  const head = new THREE.Mesh(headGeo, skinMat);
   head.position.y = 2.55;
   head.castShadow = true;
   group.add(head);
 
+  // Hair
+  const hairGeo = new THREE.BoxGeometry(0.65, 0.2, 0.65);
+  const hairMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+  const hair = new THREE.Mesh(hairGeo, hairMat);
+  hair.position.y = 2.9;
+  group.add(hair);
+
+  // Eyes
+  const eyeGeo = new THREE.BoxGeometry(0.1, 0.1, 0.1);
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  const pupilMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+  
+  const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+  leftEye.position.set(-0.15, 2.6, 0.31);
+  const leftPupil = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), pupilMat);
+  leftPupil.position.set(0, 0, 0.03);
+  leftEye.add(leftPupil);
+  group.add(leftEye);
+
+  const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+  rightEye.position.set(0.15, 2.6, 0.31);
+  const rightPupil = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.05), pupilMat);
+  rightPupil.position.set(0, 0, 0.03);
+  rightEye.add(rightPupil);
+  group.add(rightEye);
+
+  // Body
+  const bodyGeo = new THREE.BoxGeometry(1, 1.2, 0.5);
+  const bodyMat = new THREE.MeshStandardMaterial({ color: color });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 1.6;
+  body.castShadow = true;
+  group.add(body);
+
   // Tie
-  const tieGeo = new THREE.BoxGeometry(0.2, 0.8, 0.1);
+  const tieGeo = new THREE.BoxGeometry(0.15, 0.6, 0.05);
   const tieMat = new THREE.MeshStandardMaterial({ color: 0xcc0000 });
   const tie = new THREE.Mesh(tieGeo, tieMat);
-  tie.position.set(0, 1.8, 0.3);
+  tie.position.set(0, 1.8, 0.26);
   group.add(tie);
 
   // Arms
-  const armGeo = new THREE.BoxGeometry(0.3, 1.2, 0.3);
+  const armGeo = new THREE.BoxGeometry(0.3, 1.0, 0.3);
+  const handGeo = new THREE.BoxGeometry(0.25, 0.25, 0.25);
   
   const leftArmGroup = new THREE.Group();
-  leftArmGroup.position.set(-0.7, 2.0, 0);
+  leftArmGroup.position.set(-0.7, 2.1, 0);
   const leftArm = new THREE.Mesh(armGeo, bodyMat);
-  leftArm.position.y = -0.5;
+  leftArm.position.y = -0.4;
   leftArm.castShadow = true;
   leftArmGroup.add(leftArm);
+  const leftHand = new THREE.Mesh(handGeo, skinMat);
+  leftHand.position.y = -1.0;
+  leftArmGroup.add(leftHand);
   group.add(leftArmGroup);
 
   const rightArmGroup = new THREE.Group();
-  rightArmGroup.position.set(0.7, 2.0, 0);
+  rightArmGroup.position.set(0.7, 2.1, 0);
   const rightArm = new THREE.Mesh(armGeo, bodyMat);
-  rightArm.position.y = -0.5;
+  rightArm.position.y = -0.4;
   rightArm.castShadow = true;
   rightArmGroup.add(rightArm);
+  const rightHand = new THREE.Mesh(handGeo, skinMat);
+  rightHand.position.y = -1.0;
+  rightArmGroup.add(rightHand);
   group.add(rightArmGroup);
 
   // Legs
-  const legGeo = new THREE.BoxGeometry(0.4, 1.2, 0.4);
+  const legGeo = new THREE.BoxGeometry(0.4, 1.0, 0.4);
   const legMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+  const shoeGeo = new THREE.BoxGeometry(0.45, 0.2, 0.5);
   
   const leftLegGroup = new THREE.Group();
-  leftLegGroup.position.set(-0.25, 1.2, 0);
+  leftLegGroup.position.set(-0.25, 1.0, 0);
   const leftLeg = new THREE.Mesh(legGeo, legMat);
-  leftLeg.position.y = -0.6;
+  leftLeg.position.y = -0.5;
   leftLeg.castShadow = true;
   leftLegGroup.add(leftLeg);
+  const leftShoe = new THREE.Mesh(shoeGeo, hairMat);
+  leftShoe.position.set(0, -1.1, 0.05);
+  leftLegGroup.add(leftShoe);
   group.add(leftLegGroup);
 
   const rightLegGroup = new THREE.Group();
-  rightLegGroup.position.set(0.25, 1.2, 0);
+  rightLegGroup.position.set(0.25, 1.0, 0);
   const rightLeg = new THREE.Mesh(legGeo, legMat);
-  rightLeg.position.y = -0.6;
+  rightLeg.position.y = -0.5;
   rightLeg.castShadow = true;
   rightLegGroup.add(rightLeg);
+  const rightShoe = new THREE.Mesh(shoeGeo, hairMat);
+  rightShoe.position.set(0, -1.1, 0.05);
+  rightLegGroup.add(rightShoe);
   group.add(rightLegGroup);
 
   return { group, leftArmGroup, rightArmGroup, leftLegGroup, rightLegGroup };
@@ -145,29 +185,71 @@ const createDesk = () => {
 const createEnemy = () => {
   const group = new THREE.Group();
   
-  const bodyGeo = new THREE.BoxGeometry(1.2, 1.6, 0.6);
+  const bodyGeo = new THREE.BoxGeometry(1.2, 1.4, 0.6);
   const bodyMat = new THREE.MeshStandardMaterial({ color: 0x880000 });
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   body.position.y = 1.5;
   body.castShadow = true;
   group.add(body);
 
-  const headGeo = new THREE.BoxGeometry(0.7, 0.7, 0.7);
+  const headGeo = new THREE.BoxGeometry(0.8, 0.8, 0.8);
   const headMat = new THREE.MeshStandardMaterial({ color: 0xffaaaa });
   const head = new THREE.Mesh(headGeo, headMat);
-  head.position.y = 2.65;
+  head.position.y = 2.6;
   head.castShadow = true;
   group.add(head);
 
-  const hornGeo = new THREE.ConeGeometry(0.15, 0.4, 4);
+  // Angry eyes
+  const eyeGeo = new THREE.BoxGeometry(0.2, 0.1, 0.1);
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  const pupilMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+  
+  const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+  leftEye.position.set(-0.2, 2.7, 0.41);
+  leftEye.rotation.z = -0.2;
+  const leftPupil = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), pupilMat);
+  leftPupil.position.set(0, 0, 0.02);
+  leftEye.add(leftPupil);
+  group.add(leftEye);
+
+  const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+  rightEye.position.set(0.2, 2.7, 0.41);
+  rightEye.rotation.z = 0.2;
+  const rightPupil = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), pupilMat);
+  rightPupil.position.set(0, 0, 0.02);
+  rightEye.add(rightPupil);
+  group.add(rightEye);
+
+  const hornGeo = new THREE.ConeGeometry(0.15, 0.5, 4);
   const hornMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
   const leftHorn = new THREE.Mesh(hornGeo, hornMat);
-  leftHorn.position.set(-0.25, 3.1, 0);
+  leftHorn.position.set(-0.3, 3.1, 0);
+  leftHorn.rotation.z = 0.2;
   group.add(leftHorn);
   const rightHorn = new THREE.Mesh(hornGeo, hornMat);
-  rightHorn.position.set(0.25, 3.1, 0);
+  rightHorn.position.set(0.3, 3.1, 0);
+  rightHorn.rotation.z = -0.2;
   group.add(rightHorn);
 
+  // Arms
+  const armGeo = new THREE.BoxGeometry(0.4, 1.2, 0.4);
+  const leftArm = new THREE.Mesh(armGeo, bodyMat);
+  leftArm.position.set(-0.8, 1.5, 0);
+  group.add(leftArm);
+  const rightArm = new THREE.Mesh(armGeo, bodyMat);
+  rightArm.position.set(0.8, 1.5, 0);
+  group.add(rightArm);
+
+  // Legs
+  const legGeo = new THREE.BoxGeometry(0.5, 1.0, 0.5);
+  const leftLeg = new THREE.Mesh(legGeo, bodyMat);
+  leftLeg.position.set(-0.3, 0.5, 0);
+  group.add(leftLeg);
+  const rightLeg = new THREE.Mesh(legGeo, bodyMat);
+  rightLeg.position.set(0.3, 0.5, 0);
+  group.add(rightLeg);
+
+  group.userData = { color: 0x880000 };
   return group;
 };
 
@@ -184,7 +266,12 @@ const createFlyingEnemy = () => {
   wings.position.y = 0.5;
   group.add(wings);
   
-  group.userData = { hoverOffset: Math.random() * Math.PI * 2 };
+  // Eye
+  const eye = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.1), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+  eye.position.set(0, 0, 0.51);
+  group.add(eye);
+
+  group.userData = { hoverOffset: Math.random() * Math.PI * 2, color: 0x550055 };
   return group;
 };
 
@@ -192,6 +279,7 @@ const createCigarette = () => {
   const group = new THREE.Group();
   const matWhite = new THREE.MeshStandardMaterial({ color: 0xffffff });
   const matOrange = new THREE.MeshStandardMaterial({ color: 0xff8800 });
+  const matRed = new THREE.MeshStandardMaterial({ color: 0xff0000, emissive: 0xff0000 });
   
   const whitePart = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1.5, 8), matWhite);
   whitePart.position.y = 0.75;
@@ -200,8 +288,12 @@ const createCigarette = () => {
   const orangePart = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.5, 8), matOrange);
   orangePart.position.y = 1.75;
   group.add(orangePart);
+
+  const cherry = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 8), matRed);
+  cherry.position.y = 2.05;
+  group.add(cherry);
   
-  group.userData = { jumpOffset: Math.random() * Math.PI * 2 };
+  group.userData = { jumpOffset: Math.random() * Math.PI * 2, color: 0xffffff };
   return group;
 };
 
@@ -355,6 +447,38 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
     const greenNeuronkas: THREE.Group[] = [];
     const blueNeuronkas: THREE.Group[] = [];
     const pizzas: THREE.Group[] = [];
+    
+    interface Debris {
+      mesh: THREE.Mesh;
+      velocity: THREE.Vector3;
+      life: number;
+    }
+    const debrisList: Debris[] = [];
+
+    const spawnDebris = (position: THREE.Vector3, color: number, count: number) => {
+      const geo = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+      const mat = new THREE.MeshStandardMaterial({ color });
+      for (let i = 0; i < count; i++) {
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.copy(position);
+        mesh.position.x += (Math.random() - 0.5) * 1.5;
+        mesh.position.y += (Math.random() - 0.5) * 1.5;
+        mesh.position.z += (Math.random() - 0.5) * 1.5;
+        
+        mesh.rotation.set(Math.random() * Math.PI, Math.random() * Math.PI, Math.random() * Math.PI);
+        
+        scene.add(mesh);
+        debrisList.push({
+          mesh,
+          velocity: new THREE.Vector3(
+            (Math.random() - 0.5) * 15,
+            Math.random() * 15 + 5,
+            (Math.random() - 0.5) * 15
+          ),
+          life: 1.5 + Math.random() * 0.5
+        });
+      }
+    };
 
     // Procedural Generation
     const generateChunk = (startZ: number) => {
@@ -518,6 +642,7 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
 
     let animationFrameId: number;
     let lastTime = performance.now();
+    let gameOverTimer = 0;
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
@@ -527,9 +652,39 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
       if (dt > 0.1) dt = 0.1;
       lastTime = now;
 
-      if (gameStateRef.current !== 'playing' || isGameOver) return;
+      if (gameStateRef.current !== 'playing') return;
 
       time += dt;
+
+      // Update Debris
+      for (let i = debrisList.length - 1; i >= 0; i--) {
+        const d = debrisList[i];
+        d.life -= dt;
+        if (d.life <= 0) {
+          scene.remove(d.mesh);
+          debrisList.splice(i, 1);
+        } else {
+          d.velocity.y += gravity * dt;
+          d.mesh.position.addScaledVector(d.velocity, dt);
+          d.mesh.rotation.x += dt * 5;
+          d.mesh.rotation.y += dt * 5;
+          if (d.mesh.position.y < 0.15) {
+            d.mesh.position.y = 0.15;
+            d.velocity.y *= -0.5;
+            d.velocity.x *= 0.8;
+            d.velocity.z *= 0.8;
+          }
+        }
+      }
+
+      if (isGameOver) {
+        gameOverTimer -= dt;
+        if (gameOverTimer <= 0) {
+          setGameState('gameover');
+        }
+        renderer.render(scene, camera);
+        return;
+      }
 
       // Update Timers
       if (infiniteAmmoTimer > 0) {
@@ -710,6 +865,7 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
           const distSq = dx * dx + dz * dz;
           
           if (distSq < 2.25) { // 1.5 radius squared
+            spawnDebris(e.position, e.userData.color || 0x880000, 20);
             scene.remove(e);
             enemies.splice(j, 1);
             
@@ -746,9 +902,17 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
         return false;
       };
 
-      if (checkFatalCollision(obstacles) || checkFatalCollision(enemies)) {
+      if (!isGameOver && (checkFatalCollision(obstacles) || checkFatalCollision(enemies))) {
         isGameOver = true;
-        setGameState('gameover');
+        gameOverTimer = 2.0;
+        spawnDebris(player.group.position, 0x333333, 50);
+        player.group.visible = false;
+        if (pizzaTimer > 0) {
+          spawnDebris(playerLeft.group.position, 0x0033aa, 30);
+          spawnDebris(playerRight.group.position, 0xaa3300, 30);
+          playerLeft.group.visible = false;
+          playerRight.group.visible = false;
+        }
         return;
       }
 
