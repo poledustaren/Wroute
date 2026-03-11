@@ -135,7 +135,7 @@ export default function App() {
         </div>
       )}
 
-      {/* HUD & Mobile Controls */}
+      {/* HUD */}
       {(gameState === 'playing' || gameState === 'playing2') && (
         <>
           {/* Top HUD */}
@@ -163,53 +163,6 @@ export default function App() {
                   {buff}
                 </div>
               ))}
-            </div>
-          </div>
-
-          {/* Mobile Controls Overlay */}
-          <div className="absolute inset-x-0 bottom-8 px-6 flex justify-between items-end z-40 lg:hidden">
-            {/* Left/Right Controls */}
-            <div className="flex gap-4">
-              <button
-                className="w-16 h-16 bg-white/10 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center active:bg-white/30 transition-colors"
-                onPointerDown={(e) => { e.preventDefault(); inputState.left = true; inputState2.left = true; }}
-                onPointerUp={(e) => { e.preventDefault(); inputState.left = false; inputState2.left = false; }}
-                onPointerLeave={(e) => { e.preventDefault(); inputState.left = false; inputState2.left = false; }}
-              >
-                <ArrowLeft size={28} />
-              </button>
-              <button
-                className="w-16 h-16 bg-white/10 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center active:bg-white/30 transition-colors"
-                onPointerDown={(e) => { e.preventDefault(); inputState.right = true; inputState2.right = true; }}
-                onPointerUp={(e) => { e.preventDefault(); inputState.right = false; inputState2.right = false; }}
-                onPointerLeave={(e) => { e.preventDefault(); inputState.right = false; inputState2.right = false; }}
-              >
-                <ArrowRight size={28} />
-              </button>
-            </div>
-
-            {/* Action Controls */}
-            <div className="flex gap-4">
-              <button
-                className={`w-16 h-16 backdrop-blur-md border rounded-full flex items-center justify-center transition-colors ${
-                  ammo > 0 || buffs.some(b => b.includes('Бесконечная'))
-                    ? 'bg-red-500/80 border-red-400/50 active:bg-red-500'
-                    : 'bg-zinc-500/50 border-zinc-400/50 opacity-50'
-                }`}
-                onPointerDown={(e) => { e.preventDefault(); inputState.goyda = true; inputState2.shoot = true; }}
-                onPointerUp={(e) => { e.preventDefault(); inputState.goyda = false; inputState2.shoot = false; }}
-                onPointerLeave={(e) => { e.preventDefault(); inputState.goyda = false; inputState2.shoot = false; }}
-              >
-                <Zap size={28} />
-              </button>
-              <button
-                className="w-16 h-16 bg-white/10 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center active:bg-white/30 transition-colors"
-                onPointerDown={(e) => { e.preventDefault(); inputState.jump = true; inputState2.up = true; }}
-                onPointerUp={(e) => { e.preventDefault(); inputState.jump = false; inputState2.up = false; }}
-                onPointerLeave={(e) => { e.preventDefault(); inputState.jump = false; inputState2.up = false; }}
-              >
-                <ArrowUp size={28} />
-              </button>
             </div>
           </div>
           

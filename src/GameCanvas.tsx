@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
 export const inputState = {
@@ -358,9 +358,16 @@ const createNeuronka = (color: number) => {
 export default function GameCanvas({ gameState, setGameState, setScore, setAmmo, setBuffs, showPopup }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameStateRef = useRef(gameState);
-  
+  const [isMobile, setIsMobile] = useState(false);
+
   useEffect(() => {
     gameStateRef.current = gameState;
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, [gameState]);
 
   useEffect(() => {
@@ -429,6 +436,12 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
     let infiniteAmmoTimer = 0;
     let slowdownTimer = 0;
     let pizzaTimer = 0;
+    
+    // New Buff Timers
+    let speedBuffTimer = 0;
+    let shieldBuffTimer = 0;
+    let powerGoydaBuffTimer = 0;
+    
     let lastReportedBuffs = '';
 
     const roadWidth = 12;
@@ -447,6 +460,11 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
     const greenNeuronkas: THREE.Group[] = [];
     const blueNeuronkas: THREE.Group[] = [];
     const pizzas: THREE.Group[] = [];
+    
+    // New Bonus Arrays
+    const speedBonuses: THREE.Group[] = [];
+    const shieldBonuses: THREE.Group[] = [];
+    const powerGoydaBonuses: THREE.Group[] = [];
     
     interface Debris {
       mesh: THREE.Mesh;
@@ -526,59 +544,137 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
 
       // Difficulty scaling: more items over time
       const difficultyMultiplier = 1 + Math.floor(time / 20) * 0.5;
-      const numItems = Math.floor((Math.random() * 3 + 2) * difficultyMultiplier);
       
-      for (let i = 0; i < numItems; i++) {
-        const zPos = startZ - Math.random() * chunkLength;
-        const xPos = (Math.random() - 0.5) * (roadWidth - 3);
-        
-        const rand = Math.random();
-        if (rand < 0.4) {
-          // Enemies
-          const enemyTypeRand = Math.random();
-          if (time > 40 && enemyTypeRand < 0.3) {
-            const cig = createCigarette();
-            cig.position.set(xPos, 0, zPos);
-            scene.add(cig);
-            cigarettes.push(cig);
-            enemies.push(cig); // Add to general enemies for collision
-          } else if (time > 20 && enemyTypeRand < 0.6) {
-            const fly = createFlyingEnemy();
-            fly.position.set(xPos, 3 + Math.random() * 2, zPos);
-            scene.add(fly);
-            flyingEnemies.push(fly);
-            enemies.push(fly);
-          } else {
-            const enemy = createEnemy();
-            enemy.position.set(xPos, 0, zPos);
-            scene.add(enemy);
-            enemies.push(enemy);
+      const patternRand = Math.random();
+      
+      if (patternRand < 0.15 && time > 10) {
+        // Pattern 1: Wall of Desks with a gap
+        const gapIndex = Math.floor(Math.random() * 5) - 2; // -2, -1, 0, 1, 2
+        const zPos = startZ - chunkLength / 2;
+        for (let i = -2; i <= 2; i++) {
+          if (i === gapIndex) {
+            // Put a bonus in the gap
+            if (Math.random() > 0.3) {
+               const green = createNeuronka(0x00ff00);
+               green.position.set(i * 3, 1.5, zPos);
+               scene.add(green);
+               greenNeuronkas.push(green);
+            }
+            continue;
           }
-        } else if (rand < 0.6) {
+          const obs = createDesk();
+          obs.position.set(i * 3, 0, zPos);
+          scene.add(obs);
+          obstacles.push(obs);
+        }
+      } else if (patternRand < 0.3 && time > 20) {
+        // Pattern 2: V-Formation of enemies
+        const zPos = startZ - chunkLength / 4;
+        for (let i = 0; i < 3; i++) {
+          const enemy = createEnemy();
+          enemy.position.set(0, 0, zPos - i * 3);
+          scene.add(enemy);
+          enemies.push(enemy);
+          
+          if (i > 0) {
+            const enemyL = createEnemy();
+            enemyL.position.set(-i * 2.5, 0, zPos - i * 3);
+            scene.add(enemyL);
+            enemies.push(enemyL);
+            
+            const enemyR = createEnemy();
+            enemyR.position.set(i * 2.5, 0, zPos - i * 3);
+            scene.add(enemyR);
+            enemies.push(enemyR);
+          }
+        }
+      } else if (patternRand < 0.45 && time > 30) {
+        // Pattern 3: Zig-Zag Obstacles with Enemies
+        for (let i = 0; i < 4; i++) {
+          const zPos = startZ - (i + 1) * (chunkLength / 5);
+          const xPos = (i % 2 === 0) ? -3.5 : 3.5;
           const obs = createDesk();
           obs.position.set(xPos, 0, zPos);
           scene.add(obs);
           obstacles.push(obs);
-        } else if (rand < 0.75) {
-          const gramota = createGramota();
-          gramota.position.set(xPos, 1.5, zPos);
-          scene.add(gramota);
-          gramotas.push(gramota);
-        } else if (rand < 0.85) {
-          const green = createNeuronka(0x00ff00);
-          green.position.set(xPos, 1.5, zPos);
-          scene.add(green);
-          greenNeuronkas.push(green);
-        } else if (rand < 0.95) {
-          const blue = createNeuronka(0x0088ff);
-          blue.position.set(xPos, 1.5, zPos);
-          scene.add(blue);
-          blueNeuronkas.push(blue);
-        } else {
-          const pizza = createPizza();
-          pizza.position.set(xPos, 1.5, zPos);
-          scene.add(pizza);
-          pizzas.push(pizza);
+          
+          // Add enemy on the opposite side
+          const enemy = createEnemy();
+          enemy.position.set(-xPos, 0, zPos);
+          scene.add(enemy);
+          enemies.push(enemy);
+        }
+      } else {
+        // Pattern 4: Random Scatter (Original logic)
+        const numItems = Math.floor((Math.random() * 3 + 2) * difficultyMultiplier);
+        
+        for (let i = 0; i < numItems; i++) {
+          const zPos = startZ - Math.random() * chunkLength;
+          const xPos = (Math.random() - 0.5) * (roadWidth - 3);
+          
+          const rand = Math.random();
+          if (rand < 0.4) {
+            // Enemies
+            const enemyTypeRand = Math.random();
+            if (time > 40 && enemyTypeRand < 0.3) {
+              const cig = createCigarette();
+              cig.position.set(xPos, 0, zPos);
+              scene.add(cig);
+              cigarettes.push(cig);
+              enemies.push(cig); // Add to general enemies for collision
+            } else if (time > 20 && enemyTypeRand < 0.6) {
+              const fly = createFlyingEnemy();
+              fly.position.set(xPos, 3 + Math.random() * 2, zPos);
+              scene.add(fly);
+              flyingEnemies.push(fly);
+              enemies.push(fly);
+            } else {
+              const enemy = createEnemy();
+              enemy.position.set(xPos, 0, zPos);
+              scene.add(enemy);
+              enemies.push(enemy);
+            }
+          } else if (rand < 0.6) {
+            const obs = createDesk();
+            obs.position.set(xPos, 0, zPos);
+            scene.add(obs);
+            obstacles.push(obs);
+          } else if (rand < 0.75) {
+            const gramota = createGramota();
+            gramota.position.set(xPos, 1.5, zPos);
+            scene.add(gramota);
+            gramotas.push(gramota);
+          } else if (rand < 0.85) {
+            const green = createNeuronka(0x00ff00);
+            green.position.set(xPos, 1.5, zPos);
+            scene.add(green);
+            greenNeuronkas.push(green);
+          } else if (rand < 0.93) {
+            const blue = createNeuronka(0x0088ff);
+            blue.position.set(xPos, 1.5, zPos);
+            scene.add(blue);
+            blueNeuronkas.push(blue);
+          } else if (rand < 0.95) {
+            const speedBonus = createNeuronka(0xffff00); // Yellow for speed
+            speedBonus.position.set(xPos, 1.5, zPos);
+            scene.add(speedBonus);
+            speedBonuses.push(speedBonus);
+          } else if (rand < 0.97) {
+            const shieldBonus = createNeuronka(0xffffff); // White for shield
+            shieldBonus.position.set(xPos, 1.5, zPos);
+            scene.add(shieldBonus);
+            shieldBonuses.push(shieldBonus);
+          } else if (rand < 0.99) {
+            const powerBonus = createNeuronka(0xff4400); // Red/Orange for power
+            powerBonus.position.set(xPos, 1.5, zPos);
+            scene.add(powerBonus);
+            powerGoydaBonuses.push(powerBonus);
+          } else {
+            const pizza = createPizza();
+            pizza.position.set(xPos, 1.5, zPos);
+            scene.add(pizza);
+            pizzas.push(pizza);
+          }
         }
       }
     };
@@ -594,6 +690,7 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
       if (now - lastShootTime < 500) return;
       if (currentAmmo <= 0 && infiniteAmmoTimer <= 0) return;
       
+      playShootSound();
       lastShootTime = now;
 
       if (infiniteAmmoTimer <= 0) {
@@ -606,6 +703,14 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
         proj.position.copy(player.group.position);
         proj.position.x += offsetX;
         proj.position.y += 2;
+        
+        if (powerGoydaBuffTimer > 0) {
+          proj.scale.set(4, 2, 1); // Double size
+          proj.userData = { power: 2 };
+        } else {
+          proj.userData = { power: 1 };
+        }
+        
         scene.add(proj);
         projectiles.push(proj);
       };
@@ -644,13 +749,70 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
     let lastTime = performance.now();
     let gameOverTimer = 0;
 
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const playShootSound = () => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.1);
+    };
+
+    interface FloatingText {
+      sprite: THREE.Sprite;
+      life: number;
+      maxLife: number;
+    }
+    const floatingTexts: FloatingText[] = [];
+
+    const spawnFloatingText = (text: string, position: THREE.Vector3) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d')!;
+      canvas.width = 256;
+      canvas.height = 64;
+      ctx.fillStyle = 'white';
+      ctx.font = '24px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText(text, 128, 32);
+      
+      const texture = new THREE.CanvasTexture(canvas);
+      const spriteMat = new THREE.SpriteMaterial({ map: texture });
+      const sprite = new THREE.Sprite(spriteMat);
+      sprite.position.copy(position);
+      sprite.position.y += 3;
+      scene.add(sprite);
+      floatingTexts.push({ sprite, life: 1.0, maxLife: 1.0 });
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'ru-RU';
+      window.speechSynthesis.speak(utterance);
+    };
+
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
-
+      
       const now = performance.now();
       let dt = (now - lastTime) / 1000;
       if (dt > 0.1) dt = 0.1;
       lastTime = now;
+
+      for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        const ft = floatingTexts[i];
+        ft.life -= dt;
+        if (ft.life <= 0) {
+          scene.remove(ft.sprite);
+          floatingTexts.splice(i, 1);
+        } else {
+          ft.sprite.position.y += dt * 2;
+          ft.sprite.material.opacity = ft.life / ft.maxLife;
+        }
+      }
 
       if (gameStateRef.current !== 'playing') return;
 
@@ -706,12 +868,45 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
           playerRight.group.visible = true;
         }
       }
+      
+      // Update New Buff Timers
+      if (speedBuffTimer > 0) {
+        speedBuffTimer -= dt;
+        if (speedBuffTimer <= 0) speedBuffTimer = 0;
+      }
+      if (shieldBuffTimer > 0) {
+        shieldBuffTimer -= dt;
+        if (shieldBuffTimer <= 0) {
+          shieldBuffTimer = 0;
+          player.group.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              child.material.transparent = false;
+              child.material.opacity = 1.0;
+            }
+          });
+        } else {
+          // Visual feedback for shield
+          player.group.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              child.material.transparent = true;
+              child.material.opacity = 0.6 + Math.sin(time * 10) * 0.2;
+            }
+          });
+        }
+      }
+      if (powerGoydaBuffTimer > 0) {
+        powerGoydaBuffTimer -= dt;
+        if (powerGoydaBuffTimer <= 0) powerGoydaBuffTimer = 0;
+      }
 
       // Update Buffs UI
       const newBuffs = [];
       if (infiniteAmmoTimer > 0) newBuffs.push(`Бесконечная Гойда (${Math.ceil(infiniteAmmoTimer)}s)`);
       if (slowdownTimer > 0) newBuffs.push(`Замедление (${Math.ceil(slowdownTimer)}s)`);
       if (pizzaTimer > 0) newBuffs.push(`Тройная Гойда (${Math.ceil(pizzaTimer)}s)`);
+      if (speedBuffTimer > 0) newBuffs.push(`Ускорение (${Math.ceil(speedBuffTimer)}s)`);
+      if (shieldBuffTimer > 0) newBuffs.push(`Щит (${Math.ceil(shieldBuffTimer)}s)`);
+      if (powerGoydaBuffTimer > 0) newBuffs.push(`Мощная Гойда (${Math.ceil(powerGoydaBuffTimer)}s)`);
       
       const buffsString = newBuffs.join(',');
       if (buffsString !== lastReportedBuffs) {
@@ -722,6 +917,9 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
       let currentSpeed = speed;
       if (slowdownTimer > 0) {
         currentSpeed = speed * 0.5; // Slow down by 50%
+      }
+      if (speedBuffTimer > 0) {
+        currentSpeed = speed * 1.5; // Speed up by 50%
       }
 
       playerZ -= currentSpeed * dt;
@@ -832,22 +1030,37 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
         currentAmmo += 5;
         setAmmo(currentAmmo);
         scoreCounter += 10;
-        showPopup("норм темка");
+        spawnFloatingText("норм темка", player.group.position);
       });
       
       checkCollectible(greenNeuronkas, () => { 
         slowdownTimer = 5; 
-        showPopup("ты выбрал нейронку для затупа");
+        spawnFloatingText("ты выбрал нейронку для затупа", player.group.position);
       });
       
       checkCollectible(blueNeuronkas, () => { 
         infiniteAmmoTimer = 10; 
-        showPopup("нейро удача, вышла новая нейронка, а не говно");
+        spawnFloatingText("нейро удача", player.group.position);
       });
       
       checkCollectible(pizzas, () => { 
         pizzaTimer = 5; 
-        showPopup("работаем братьч, пиццу привезли");
+        spawnFloatingText("работаем братьч", player.group.position);
+      });
+      
+      checkCollectible(speedBonuses, () => {
+        speedBuffTimer = 10;
+        spawnFloatingText("УСКОРЕНИЕ!", player.group.position);
+      });
+      
+      checkCollectible(shieldBonuses, () => {
+        shieldBuffTimer = 5;
+        spawnFloatingText("ЩИТ!", player.group.position);
+      });
+      
+      checkCollectible(powerGoydaBonuses, () => {
+        powerGoydaBuffTimer = 10;
+        spawnFloatingText("МОЩНАЯ ГОЙДА!", player.group.position);
       });
 
       // Projectiles vs Enemies
@@ -864,7 +1077,9 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
           const dz = p.position.z - e.position.z;
           const distSq = dx * dx + dz * dz;
           
-          if (distSq < 2.25) { // 1.5 radius squared
+          const hitRadiusSq = (powerGoydaBuffTimer > 0) ? 9 : 2.25; // 3 radius vs 1.5 radius
+          
+          if (distSq < hitRadiusSq) { 
             spawnDebris(e.position, e.userData.color || 0x880000, 20);
             scene.remove(e);
             enemies.splice(j, 1);
@@ -902,7 +1117,7 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
         return false;
       };
 
-      if (!isGameOver && (checkFatalCollision(obstacles) || checkFatalCollision(enemies))) {
+      if (!isGameOver && shieldBuffTimer <= 0 && (checkFatalCollision(obstacles) || checkFatalCollision(enemies))) {
         isGameOver = true;
         gameOverTimer = 2.0;
         spawnDebris(player.group.position, 0x333333, 50);
@@ -944,6 +1159,9 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
       cleanupArray(greenNeuronkas);
       cleanupArray(blueNeuronkas);
       cleanupArray(pizzas);
+      cleanupArray(speedBonuses);
+      cleanupArray(shieldBonuses);
+      cleanupArray(powerGoydaBonuses);
 
       renderer.render(scene, camera);
     };
@@ -961,8 +1179,41 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
       if (e.code === 'KeyG' || e.code === 'Enter') inputState.goyda = false;
     };
 
+    const handleTouch = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      
+      const x = touch.clientX;
+      const y = touch.clientY;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+
+      // Bottom left area (Goyda and Jump)
+      if (x < w * 0.4 && y > h * 0.6) return;
+      
+      // Bottom right area (Weapon)
+      if (x > w * 0.6 && y > h * 0.6) return;
+
+      // Tap screen to move left/right
+      if (x < w / 2) {
+        inputState.left = true;
+        inputState.right = false;
+      } else {
+        inputState.right = true;
+        inputState.left = false;
+      }
+    };
+
+    const handleTouchEnd = () => {
+      inputState.left = false;
+      inputState.right = false;
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('touchstart', handleTouch);
+    window.addEventListener('touchmove', handleTouch);
+    window.addEventListener('touchend', handleTouchEnd);
 
     renderer.render(scene, camera);
     animate();
@@ -977,11 +1228,51 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('touchstart', handleTouch);
+      window.removeEventListener('touchmove', handleTouch);
+      window.removeEventListener('touchend', handleTouchEnd);
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
       renderer.dispose();
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="absolute inset-0 z-0 w-full h-full block" />;
+  return (
+    <div className="relative w-full h-full overflow-hidden">
+      <canvas ref={canvasRef} className="absolute inset-0 z-0 w-full h-full block" />
+      
+      {isMobile && (
+        <div className="absolute inset-0 z-10 pointer-events-none">
+          {/* Bottom Left: Goyda and Weapon Change */}
+          <div className="absolute bottom-10 left-10 flex flex-col gap-4 pointer-events-auto">
+            <button
+              className="w-24 h-24 bg-red-500/50 rounded-full border-2 border-red-500/80 flex items-center justify-center text-white font-bold active:bg-red-500/80 touch-none"
+              onTouchStart={() => { inputState.goyda = true; }}
+              onTouchEnd={() => { inputState.goyda = false; }}
+            >
+              ГОЙДА
+            </button>
+            <button
+              className="w-24 h-24 bg-yellow-500/50 rounded-full border-2 border-yellow-500/80 flex flex-col items-center justify-center text-white font-bold active:bg-yellow-500/80 touch-none"
+              onClick={() => showPopup("Смена оружия пока недоступна")}
+            >
+              <span className="text-xs">ОРУЖИЕ</span>
+              <span className="text-[10px] opacity-70">ГОЙДА v1</span>
+            </button>
+          </div>
+
+          {/* Bottom Right: Jump */}
+          <div className="absolute bottom-10 right-10 pointer-events-auto">
+            <button
+              className="w-24 h-24 bg-blue-500/50 rounded-full border-2 border-blue-500/80 flex items-center justify-center text-white font-bold active:bg-blue-500/80 touch-none"
+              onTouchStart={() => { inputState.jump = true; }}
+              onTouchEnd={() => { inputState.jump = false; }}
+            >
+              ПРЫЖОК
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }

@@ -1,5 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { Joystick } from './components/Joystick';
 
 export const inputState2 = {
   up: false,
@@ -12,6 +13,9 @@ export const inputState2 = {
   ult: false,
   mouseX: 0,
   mouseY: 0,
+  isMoving: false,
+  joyX: 0,
+  joyY: 0,
 };
 
 interface Level2CanvasProps {
@@ -142,9 +146,22 @@ const createTextSprite = (text: string, color: string) => {
 export default function Level2Canvas({ gameState, setGameState, setScore, setAmmo, setBuffs, showPopup }: Level2CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameStateRef = useRef(gameState);
+  const [isMobile, setIsMobile] = useState(false);
+  const [selectedWeapon, setSelectedWeapon] = useState<'cigarette' | 'ashtray'>('cigarette');
+  const selectedWeaponRef = useRef(selectedWeapon);
+
+  useEffect(() => {
+    selectedWeaponRef.current = selectedWeapon;
+  }, [selectedWeapon]);
   
   useEffect(() => {
     gameStateRef.current = gameState;
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, [gameState]);
 
   useEffect(() => {
@@ -264,6 +281,10 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
       sprite.position.y += 2;
       scene.add(sprite);
       floatingTexts.push({ sprite, life: 1.0, maxLife: 1.0 });
+      
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'ru-RU';
+      window.speechSynthesis.speak(utterance);
     };
 
     const spawnDebris = (position: THREE.Vector3, color: number, count: number) => {
@@ -288,21 +309,30 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
     const raycaster = new THREE.Raycaster();
     const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 
-    const shoot = (type: 'cigarette' | 'lighter' | 'coffee') => {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const playShootSound = () => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+      gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.1);
+    };
+
+    const shoot = (type: 'cigarette' | 'ashtray') => {
       const now = performance.now();
       if (now - lastShootTime < 300) return;
+      playShootSound();
       lastShootTime = now;
 
-      // Calculate aim direction
-      const mouse = new THREE.Vector2(
-        (inputState2.mouseX / window.innerWidth) * 2 - 1,
-        -(inputState2.mouseY / window.innerHeight) * 2 + 1
-      );
-      raycaster.setFromCamera(mouse, camera);
-      const target = new THREE.Vector3();
-      raycaster.ray.intersectPlane(plane, target);
-      
-      const dir = new THREE.Vector3().subVectors(target, player.position);
+      // Aim direction is now player's facing direction
+      const dir = new THREE.Vector3(0, 0, 1);
+      dir.applyQuaternion(player.quaternion);
       dir.y = 0;
       dir.normalize();
 
@@ -319,23 +349,7 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
         
         scene.add(proj);
         projectiles.push({ mesh: proj, velocity: dir.multiplyScalar(25), type: 'cigarette' });
-      } else if (type === 'lighter') {
-        const proj = createLighterProjectile();
-        proj.position.copy(player.position);
-        proj.position.y = 1.0;
-        const angle = Math.atan2(dir.x, dir.z);
-        proj.rotation.y = angle;
-        scene.add(proj);
-        projectiles.push({ mesh: proj, velocity: dir.multiplyScalar(20), type: 'lighter' });
-      } else if (type === 'coffee') {
-        const proj = createCoffeeProjectile();
-        proj.position.copy(player.position);
-        proj.position.y = 1.0;
-        const angle = Math.atan2(dir.x, dir.z);
-        proj.rotation.y = angle;
-        scene.add(proj);
-        projectiles.push({ mesh: proj, velocity: dir.multiplyScalar(30), type: 'coffee' });
-      } else if (type === 'cigarette' && currentAmmo <= 0) {
+      } else if (type === 'ashtray' || (type === 'cigarette' && currentAmmo <= 0)) {
         // Melee with ashtray
         if (ashtrayTimer <= 0) {
           if (!ashtrayMesh) {
@@ -348,7 +362,7 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
           for (let i = enemies.length - 1; i >= 0; i--) {
             const e = enemies[i];
             const dist = player.position.distanceTo(e.position);
-            const hitDist = e.userData.width / 2 + 2.0;
+            const hitDist = e.userData.width / 2 + 2.5; // Increased hit range slightly
             if (dist < hitDist) {
               let damage = 0;
               if (e.userData.type === 'dushnila') damage = 5; // One shot dushnila
@@ -408,7 +422,7 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
 
       let targetFogDensity = 0;
       const vaperCount = enemies.filter(e => e.userData.type === 'vaper').length;
-      targetFogDensity = vaperCount * 0.03;
+      targetFogDensity = vaperCount * 0.005; // Reduced fog density
       if (fireExtinguisherTimer > 0) targetFogDensity = 0;
       
       if (scene.fog instanceof THREE.FogExp2) {
@@ -447,15 +461,29 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
       const moveSpeed = 12;
       let moveX = 0;
       let moveZ = 0;
-      if (inputState2.up) moveZ -= 1;
-      if (inputState2.down) moveZ += 1;
-      if (inputState2.left) moveX -= 1;
-      if (inputState2.right) moveX += 1;
+      
+      if (inputState2.isMoving) {
+        // Move in the direction the player is facing
+        moveX = Math.sin(player.rotation.y);
+        moveZ = Math.cos(player.rotation.y);
+      } else if (Math.abs(inputState2.joyX) > 0.1 || Math.abs(inputState2.joyY) > 0.1) {
+        moveX = inputState2.joyX;
+        moveZ = inputState2.joyY;
+      } else {
+        if (inputState2.up) moveZ -= 1;
+        if (inputState2.down) moveZ += 1;
+        if (inputState2.left) moveX -= 1;
+        if (inputState2.right) moveX += 1;
+      }
       
       if (moveX !== 0 || moveZ !== 0) {
         const length = Math.sqrt(moveX * moveX + moveZ * moveZ);
         playerX += (moveX / length) * moveSpeed * dt;
         playerZ += (moveZ / length) * moveSpeed * dt;
+
+        // Aiming rotation follows movement
+        const targetAngle = Math.atan2(moveX, moveZ);
+        player.rotation.y = targetAngle;
       }
 
       // Clamp to room
@@ -467,22 +495,8 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
 
       player.position.set(playerX, 0, playerZ);
 
-      // Aiming rotation
-      const mouse = new THREE.Vector2(
-        (inputState2.mouseX / window.innerWidth) * 2 - 1,
-        -(inputState2.mouseY / window.innerHeight) * 2 + 1
-      );
-      raycaster.setFromCamera(mouse, camera);
-      const target = new THREE.Vector3();
-      raycaster.ray.intersectPlane(plane, target);
-      player.lookAt(target.x, player.position.y, target.z);
-
       if (inputState2.shoot) {
-        shoot('cigarette');
-      } else if (inputState2.shootLighter) {
-        shoot('lighter');
-      } else if (inputState2.shootCoffee) {
-        shoot('coffee');
+        shoot(selectedWeaponRef.current);
       }
 
       // Ashtray animation
@@ -568,18 +582,17 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
         if (c.mesh.position.distanceTo(player.position) < 1.5) {
           if (c.type === 'coffee') {
             setBuffs(['Кофе 3-в-1 (Ускорение)']);
-            showPopup("КОФЕ 3-В-1!");
-            // Speed boost handled implicitly or we can just give score
+            spawnText(c.mesh.position, "КОФЕ 3-В-1!", "#ffaa00");
             scoreCounter += 100;
           } else if (c.type === 'gossip') {
             gossipTimer = 3;
             setBuffs(['Сплетня (Заморозка)']);
-            showPopup("А ВЫ СЛЫШАЛИ ПРО...");
+            spawnText(c.mesh.position, "А ВЫ СЛЫШАЛИ ПРО...", "#ff00ff");
             scoreCounter += 100;
           } else if (c.type === 'ammo') {
             currentAmmo += 10;
             setAmmo(currentAmmo);
-            showPopup("+10 СИГАРЕТ");
+            spawnText(c.mesh.position, "+10 СИГАРЕТ", "#00ff00");
           }
           setScore(scoreCounter);
           scene.remove(c.mesh);
@@ -590,38 +603,91 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
       // Enemy Spawning
       enemySpawnTimer -= dt;
       if (enemySpawnTimer <= 0) {
-        const wave = Math.floor(time / 10);
-        enemySpawnRate = Math.max(0.3, 2.0 - wave * 0.15);
+        const wave = Math.floor(time / 15);
+        enemySpawnRate = Math.max(0.4, 2.5 - wave * 0.2);
         enemySpawnTimer = enemySpawnRate;
         
-        let enemyType: 'strelok' | 'dushnila' | 'vaper' | 'boss' = 'strelok';
-        
-        if (time > 60 && !bossSpawned) {
-          enemyType = 'boss';
-          bossSpawned = true;
-          showPopup("БОСС ПРИШЕЛ ПОКУРИТЬ!");
-        } else if (time > 30 && Math.random() < 0.4) {
-          enemyType = 'dushnila';
-        } else if (time > 60 && bossSpawned) {
-          enemyType = Math.random() < 0.5 ? 'vaper' : 'strelok';
-        }
-        
-        if (enemyType === 'boss' || Math.random() < 0.8) {
-          const enemy = createEnemy(enemyType);
-          // Spawn at random edge
+        const getEdgePos = () => {
           const edge = Math.floor(Math.random() * 4);
           let ex = 0, ez = 0;
           if (edge === 0) { ex = (Math.random() - 0.5) * roomSize; ez = -roomSize/2; }
           if (edge === 1) { ex = (Math.random() - 0.5) * roomSize; ez = roomSize/2; }
           if (edge === 2) { ex = -roomSize/2; ez = (Math.random() - 0.5) * roomSize; }
           if (edge === 3) { ex = roomSize/2; ez = (Math.random() - 0.5) * roomSize; }
+          return { ex, ez };
+        };
+
+        if (time > 60 && !bossSpawned) {
+          bossSpawned = true;
+          showPopup("БОСС ПРИШЕЛ ПОКУРИТЬ!");
+          const { ex, ez } = getEdgePos();
+          const boss = createEnemy('boss');
+          boss.position.set(ex, 0, ez);
+          scene.add(boss);
+          enemies.push(boss);
           
-          enemy.position.set(ex, 0, ez);
-          scene.add(enemy);
-          enemies.push(enemy);
+          // Boss escort
+          for (let i = 0; i < 3; i++) {
+            const escort = createEnemy('dushnila');
+            escort.position.set(ex + (Math.random() - 0.5) * 4, 0, ez + (Math.random() - 0.5) * 4);
+            scene.add(escort);
+            enemies.push(escort);
+          }
+        } else {
+          const patternRand = Math.random();
+          
+          if (patternRand < 0.2 && wave > 1) {
+            // Pattern 1: Vaper Swarm (3-5 fast enemies)
+            const swarmSize = Math.floor(Math.random() * 3) + 3;
+            const { ex, ez } = getEdgePos();
+            for (let i = 0; i < swarmSize; i++) {
+              const enemy = createEnemy('vaper');
+              enemy.position.set(ex + (Math.random() - 0.5) * 3, 0, ez + (Math.random() - 0.5) * 3);
+              scene.add(enemy);
+              enemies.push(enemy);
+            }
+          } else if (patternRand < 0.4 && wave > 2) {
+            // Pattern 2: Circle Surround (Streloks from all sides)
+            for (let i = 0; i < 4; i++) {
+              const enemy = createEnemy('strelok');
+              let ex = 0, ez = 0;
+              if (i === 0) { ex = 0; ez = -roomSize/2; }
+              if (i === 1) { ex = 0; ez = roomSize/2; }
+              if (i === 2) { ex = -roomSize/2; ez = 0; }
+              if (i === 3) { ex = roomSize/2; ez = 0; }
+              enemy.position.set(ex, 0, ez);
+              scene.add(enemy);
+              enemies.push(enemy);
+            }
+          } else if (patternRand < 0.6 && wave > 3) {
+            // Pattern 3: Dushnila Escort
+            const { ex, ez } = getEdgePos();
+            const dushnila = createEnemy('dushnila');
+            dushnila.position.set(ex, 0, ez);
+            scene.add(dushnila);
+            enemies.push(dushnila);
+            
+            for (let i = 0; i < 2; i++) {
+              const strelok = createEnemy('strelok');
+              strelok.position.set(ex + (Math.random() - 0.5) * 3, 0, ez + (Math.random() - 0.5) * 3);
+              scene.add(strelok);
+              enemies.push(strelok);
+            }
+          } else {
+            // Standard single spawn
+            let enemyType: 'strelok' | 'dushnila' | 'vaper' = 'strelok';
+            if (time > 30 && Math.random() < 0.4) enemyType = 'dushnila';
+            else if (time > 15 && Math.random() < 0.3) enemyType = 'vaper';
+            
+            const { ex, ez } = getEdgePos();
+            const enemy = createEnemy(enemyType);
+            enemy.position.set(ex, 0, ez);
+            scene.add(enemy);
+            enemies.push(enemy);
+          }
         }
 
-        if (Math.random() < 0.2) {
+        if (Math.random() < 0.3) {
           const type = Math.random() < 0.3 ? 'coffee' : (Math.random() < 0.6 ? 'gossip' : 'ammo');
           const cx = (Math.random() - 0.5) * (roomSize - 4);
           const cz = (Math.random() - 0.5) * (roomSize - 4);
@@ -725,12 +791,26 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
     };
     const handleContextMenu = (e: MouseEvent) => e.preventDefault();
 
+    const handleTouch = (e: TouchEvent) => {
+      const touch = e.touches[0];
+      if (!touch) return;
+      
+      const x = touch.clientX;
+      const y = touch.clientY;
+
+      // Aiming touch
+      inputState2.mouseX = x;
+      inputState2.mouseY = y;
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('mousemove', handleMouseMove);
     window.addEventListener('mousedown', handleMouseDown);
     window.addEventListener('mouseup', handleMouseUp);
     window.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('touchstart', handleTouch);
+    window.addEventListener('touchmove', handleTouch);
 
     animate();
 
@@ -747,11 +827,76 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mousedown', handleMouseDown);
       window.removeEventListener('mouseup', handleMouseUp);
+      window.removeEventListener('touchstart', handleTouch);
+      window.removeEventListener('touchmove', handleTouch);
       window.removeEventListener('resize', handleResize);
       cancelAnimationFrame(animationFrameId);
       renderer.dispose();
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="absolute inset-0 z-0 w-full h-full block cursor-crosshair" />;
+  return (
+    <div className="relative w-full h-full overflow-hidden">
+      <canvas ref={canvasRef} className="absolute inset-0 z-0 w-full h-full block cursor-crosshair" />
+      
+      {isMobile && (
+        <div className="absolute inset-0 z-10 pointer-events-none">
+          {/* Left Side: Weapon Icons and Shoot Button */}
+          <div className="absolute bottom-10 left-10 flex flex-col gap-6 pointer-events-auto">
+            {/* Weapon Icons Row */}
+            <div className="flex gap-2 bg-black/40 p-2 rounded-2xl backdrop-blur-md border border-white/20 shadow-2xl">
+              {(['cigarette', 'ashtray'] as const).map((w) => (
+                <button
+                  key={w}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSelectedWeapon(w);
+                  }}
+                  className={`w-16 h-16 rounded-xl flex items-center justify-center transition-all active:scale-90 ${
+                    selectedWeapon === w 
+                      ? 'bg-white/40 border-2 border-white shadow-[0_0_15px_rgba(255,255,255,0.6)]' 
+                      : 'bg-white/10 hover:bg-white/20 border border-white/10'
+                  }`}
+                >
+                  <div className="flex flex-col items-center">
+                    <span className="text-2xl mb-1">
+                      {w === 'cigarette' ? '🚬' : '🥣'}
+                    </span>
+                    <span className="text-[9px] text-white font-black uppercase tracking-tighter">
+                      {w === 'cigarette' ? 'Сига' : 'Пепел'}
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {/* Shoot Button */}
+            <button
+              className="w-32 h-32 bg-red-600/70 rounded-full border-4 border-red-400/80 flex items-center justify-center text-white font-black text-2xl shadow-[0_0_30px_rgba(220,38,38,0.5)] active:scale-90 active:bg-red-500/90 transition-all touch-none select-none ring-4 ring-red-900/20"
+              onTouchStart={(e) => { e.stopPropagation(); inputState2.shoot = true; }}
+              onTouchEnd={(e) => { e.stopPropagation(); inputState2.shoot = false; }}
+              onMouseDown={(e) => { e.stopPropagation(); inputState2.shoot = true; }}
+              onMouseUp={(e) => { e.stopPropagation(); inputState2.shoot = false; }}
+            >
+              <div className="flex flex-col items-center">
+                <span className="leading-none">ОГОНЬ</span>
+                <span className="text-[10px] opacity-60 mt-1">SHOOT</span>
+              </div>
+            </button>
+          </div>
+
+          {/* Right Side: Joystick */}
+          <div className="absolute bottom-10 right-10 pointer-events-auto">
+            <Joystick 
+              size={150}
+              onMove={(x, y) => {
+                inputState2.joyX = x;
+                inputState2.joyY = y;
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
