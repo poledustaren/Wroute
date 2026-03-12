@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import GameCanvas, { inputState } from './GameCanvas';
 import Level2Canvas, { inputState2 } from './Level2Canvas';
-import { Play, Skull, ArrowLeft, ArrowRight, ArrowUp, Zap, FileText, Cigarette } from 'lucide-react';
+import Level0Canvas from './Level0Canvas';
+import { Play, Skull, ArrowLeft, ArrowRight, ArrowUp, Zap, FileText, Cigarette, MessageSquare } from 'lucide-react';
 
 export default function App() {
-  const [gameState, setGameState] = useState<'menu' | 'playing' | 'playing2' | 'gameover'>('menu');
+  const [gameState, setGameState] = useState<'menu' | 'playing' | 'playing2' | 'gameover' | 'playing0'>('menu');
   const [score, setScore] = useState(0);
   const [ammo, setAmmo] = useState(10);
   const [buffs, setBuffs] = useState<string[]>([]);
@@ -40,6 +41,15 @@ export default function App() {
     setGameState('playing2');
   };
 
+  const startLevel0 = () => {
+    setScore(0);
+    setAmmo(0);
+    setBuffs([]);
+    setPopupText(null);
+    setGameId(prev => prev + 1);
+    setGameState('playing0');
+  };
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black text-white font-sans select-none">
       {/* Game Canvas */}
@@ -64,6 +74,16 @@ export default function App() {
           setAmmo={setAmmo}
           setBuffs={setBuffs}
           showPopup={showPopup}
+        />
+      )}
+
+      {gameState === 'playing0' && (
+        <Level0Canvas 
+          key={gameId}
+          gameState={gameState} 
+          setGameState={setGameState} 
+          setScore={setScore}
+          score={score}
         />
       )}
 
@@ -114,6 +134,13 @@ export default function App() {
             >
               <Zap size={20} />
               ГОЙДА
+            </button>
+            <button
+              onClick={startLevel0}
+              className="flex items-center justify-center gap-2 w-full py-4 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 active:scale-95 transition-all"
+            >
+              <MessageSquare size={20} />
+              ТЕХПОДДЕРЖКА (УРОВЕНЬ 0)
             </button>
           </div>
         </div>

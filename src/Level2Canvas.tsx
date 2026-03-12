@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Joystick } from './components/Joystick';
+import { clothingItems, ClothingItem, getRandomClothing } from './services/clothingService';
+import GameGuide from './components/GameGuide';
 
 export const inputState2 = {
   up: false,
@@ -124,6 +126,52 @@ const createAshtray = () => {
   return mesh;
 };
 
+// Словарь шуток для врагов
+const enemyJokes = [
+  "А ты знаешь, что капля никотина убивает лошадь?",
+  "Я не курю, я держу сигарету!",
+  "Курить - здоровью вредить!",
+  "Бросай курить - начнёшь жить!",
+  "Сигарета в руках - признак неполноценности!",
+  "Ты кто такой? Давай, до свидания!",
+  "Я не душнила, я просто знаю правила!",
+  "Курение вызывает импотенцию!",
+  "А у тебя есть лицензия на курение?",
+  "Это не курение, это медитация!",
+  "Сигарета - лучший друг программиста!",
+  "Код компилируется - сигарета горит!",
+  "Я не душнила, я просто душный!",
+  "Ты чё, обкурился?",
+  "Это не дым, это пары творчества!",
+  "Курить бросил - программистом стал!",
+  "Сигарета помогает думать!",
+  "Я не курю, я вдыхаю аромат успеха!",
+  "Ты не поймёшь, это уровень выше!",
+  "Кодинг и курение - две стороны одной медали!",
+  "Это не зависимость, это стиль жизни!",
+  "Сигарета - мой дебаггер!",
+  "Я не душнила, я просто оптимизирую!",
+  "Курить - не модно, кодить - модно!",
+  "Ты чё, не куришь? Тогда ты не программист!",
+  "Это не курение, это рефакторинг!",
+  "Сигарета помогает находить баги!",
+  "Я не душнила, я просто ревью код!",
+  "Курение убивает, но код убивает больше!",
+  "Ты не поймёшь, это хай-лвл!",
+];
+
+// Стихи обезьяны-поэта
+const monkeyPoems = [
+  "Я обезьяна, я поэт,\nКурить бросай, не будь посред!\nСигарета - враг твой,\nБросай курить - будь героем!",
+  "Прибежала я сломя,\nЧтоб сказать тебе: не куря!\nСигарета - дрянь,\nЖизнь одна - не трать!",
+  "Я обезьяна с хвостом,\nПришла с стихом мудрым:\nКурить - здоровью вред,\nБросай скорей - будь умней!",
+  "Сломала стену, прибежала,\nСтихи читаю, не устала!\nКурить бросай, друг,\nЖизнь прекрасна вокруг!",
+  "Я обезьяна-поэт,\nМои стихи - совет:\nНе кури, не дымись,\nЛучше с кодом сдружись!",
+  "Прибежала, стену снесла,\nСтихи читаю - вот дела!\nКурить - не круто,\nЖизнь одна - будь умным!",
+  "Я обезьяна с талантом,\nПришла с мудрым посланьем:\nБросай курить скорей,\nСтань программистом - будь героем!",
+  "Сломала стену - пришла,\nСтихи читаю - вот дела!\nКурение - зло,\nКодинг - добро!",
+];
+
 const createTextSprite = (text: string, color: string) => {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
@@ -143,12 +191,127 @@ const createTextSprite = (text: string, color: string) => {
   return sprite;
 };
 
+// Создание обезьяны-поэта
+const createMonkeyPoet = () => {
+  const group = new THREE.Group();
+  
+  // Тело обезьяны
+  const bodyGeo = new THREE.SphereGeometry(1.2, 16, 16);
+  const bodyMat = new THREE.MeshStandardMaterial({ 
+    color: 0x8B4513,
+    roughness: 0.8
+  });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.scale.set(1, 1.2, 0.8);
+  body.position.y = 1.2;
+  body.castShadow = true;
+  group.add(body);
+  
+  // Голова
+  const headGeo = new THREE.SphereGeometry(0.8, 16, 16);
+  const head = new THREE.Mesh(headGeo, bodyMat);
+  head.position.set(0, 2.5, 0.3);
+  head.castShadow = true;
+  group.add(head);
+  
+  // Лицо
+  const faceGeo = new THREE.SphereGeometry(0.5, 16, 16);
+  const faceMat = new THREE.MeshStandardMaterial({ color: 0xDEB887 });
+  const face = new THREE.Mesh(faceGeo, faceMat);
+  face.position.set(0, 2.3, 0.7);
+  group.add(face);
+  
+  // Глаза
+  const eyeGeo = new THREE.SphereGeometry(0.15, 8, 8);
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+  const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+  leftEye.position.set(-0.25, 2.5, 1.0);
+  group.add(leftEye);
+  const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+  rightEye.position.set(0.25, 2.5, 1.0);
+  group.add(rightEye);
+  
+  // Уши
+  const earGeo = new THREE.SphereGeometry(0.3, 8, 8);
+  const leftEar = new THREE.Mesh(earGeo, bodyMat);
+  leftEar.position.set(-0.8, 2.6, 0);
+  group.add(leftEar);
+  const rightEar = new THREE.Mesh(earGeo, bodyMat);
+  rightEar.position.set(0.8, 2.6, 0);
+  group.add(rightEar);
+  
+  // Руки
+  const armGeo = new THREE.CylinderGeometry(0.2, 0.15, 1.2, 8);
+  const leftArm = new THREE.Mesh(armGeo, bodyMat);
+  leftArm.position.set(-1.4, 1.5, 0);
+  leftArm.rotation.z = Math.PI / 4;
+  group.add(leftArm);
+  const rightArm = new THREE.Mesh(armGeo, bodyMat);
+  rightArm.position.set(1.4, 1.5, 0);
+  rightArm.rotation.z = -Math.PI / 4;
+  group.add(rightArm);
+  
+  // Ноги
+  const legGeo = new THREE.CylinderGeometry(0.25, 0.2, 0.8, 8);
+  const leftLeg = new THREE.Mesh(legGeo, bodyMat);
+  leftLeg.position.set(-0.5, 0.4, 0);
+  group.add(leftLeg);
+  const rightLeg = new THREE.Mesh(legGeo, bodyMat);
+  rightLeg.position.set(0.5, 0.4, 0);
+  group.add(rightLeg);
+  
+  // Хвост
+  const tailCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0, 0.5, -1),
+    new THREE.Vector3(0, 0.8, -1.5),
+    new THREE.Vector3(0.5, 1.2, -1.8),
+    new THREE.Vector3(0.8, 1.8, -1.5)
+  ]);
+  const tailGeo = new THREE.TubeGeometry(tailCurve, 20, 0.12, 8, false);
+  const tail = new THREE.Mesh(tailGeo, bodyMat);
+  group.add(tail);
+  
+  // Шляпа поэта
+  const hatBrimGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.1, 16);
+  const hatMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+  const hatBrim = new THREE.Mesh(hatBrimGeo, hatMat);
+  hatBrim.position.set(0, 3.2, 0);
+  group.add(hatBrim);
+  
+  const hatTopGeo = new THREE.CylinderGeometry(0.4, 0.5, 0.6, 16);
+  const hatTop = new THREE.Mesh(hatTopGeo, hatMat);
+  hatTop.position.set(0, 3.5, 0);
+  group.add(hatTop);
+  
+  // Очки
+  const glassesFrameGeo = new THREE.TorusGeometry(0.2, 0.03, 8, 16);
+  const glassesMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+  const leftGlasses = new THREE.Mesh(glassesFrameGeo, glassesMat);
+  leftGlasses.position.set(-0.25, 2.5, 0.9);
+  group.add(leftGlasses);
+  const rightGlasses = new THREE.Mesh(glassesFrameGeo, glassesMat);
+  rightGlasses.position.set(0.25, 2.5, 0.9);
+  group.add(rightGlasses);
+  
+  // Перо в шляпе
+  const featherGeo = new THREE.ConeGeometry(0.05, 0.5, 4);
+  const featherMat = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+  const feather = new THREE.Mesh(featherGeo, featherMat);
+  feather.position.set(0.3, 3.8, 0);
+  feather.rotation.z = -0.3;
+  group.add(feather);
+  
+  group.userData = { type: 'monkeyPoet', isPoeting: false };
+  return group;
+};
+
 export default function Level2Canvas({ gameState, setGameState, setScore, setAmmo, setBuffs, showPopup }: Level2CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameStateRef = useRef(gameState);
   const [isMobile, setIsMobile] = useState(false);
   const [selectedWeapon, setSelectedWeapon] = useState<'cigarette' | 'ashtray'>('cigarette');
   const selectedWeaponRef = useRef(selectedWeapon);
+  const [showGuide, setShowGuide] = useState(true);
 
   useEffect(() => {
     selectedWeaponRef.current = selectedWeapon;
@@ -252,9 +415,14 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
     }
     const floatingTexts: FloatingText[] = [];
 
-    const collectibles: { mesh: THREE.Group | THREE.Mesh, type: 'coffee' | 'gossip' | 'ammo' }[] = [];
+    const collectibles: { mesh: THREE.Group | THREE.Mesh, type: 'coffee' | 'gossip' | 'ammo' | 'clothing' | 'ashtray', clothingItem?: ClothingItem }[] = [];
+    
+    // Система одежды игрока
+    const equippedClothing: { [key: string]: THREE.Group } = {};
+    let clothingCollectedCount = 0;
+    let lastClothingPraise = 0;
 
-    const spawnCollectible = (position: THREE.Vector3, type: 'coffee' | 'gossip' | 'ammo') => {
+    const spawnCollectible = (position: THREE.Vector3, type: 'coffee' | 'gossip' | 'ammo' | 'clothing', clothingItem?: ClothingItem) => {
       let mesh;
       if (type === 'coffee') {
         const geo = new THREE.CylinderGeometry(0.3, 0.2, 0.6, 8);
@@ -264,6 +432,41 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
         const geo = new THREE.BoxGeometry(0.5, 0.5, 0.1);
         const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
         mesh = new THREE.Mesh(geo, mat);
+      } else if (type === 'ammo') {
+        const geo = new THREE.BoxGeometry(0.4, 0.2, 0.2);
+        const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        mesh = new THREE.Mesh(geo, mat);
+      } else if (type === 'clothing' && clothingItem) {
+        // Создаём 3D модель одежды
+        const group = new THREE.Group();
+        const geo = new THREE.BoxGeometry(
+          clothingItem.scale.x,
+          clothingItem.scale.y,
+          clothingItem.scale.z
+        );
+        const mat = new THREE.MeshStandardMaterial({ 
+          color: clothingItem.color,
+          roughness: 0.7,
+          metalness: 0.1
+        });
+        const clothingMesh = new THREE.Mesh(geo, mat);
+        group.add(clothingMesh);
+        
+        // Добавляем свечение для привлечения внимания
+        const glowGeo = new THREE.BoxGeometry(
+          clothingItem.scale.x * 1.2,
+          clothingItem.scale.y * 1.2,
+          clothingItem.scale.z * 1.2
+        );
+        const glowMat = new THREE.MeshBasicMaterial({ 
+          color: clothingItem.color,
+          transparent: true,
+          opacity: 0.3
+        });
+        const glow = new THREE.Mesh(glowGeo, glowMat);
+        group.add(glow);
+        
+        mesh = group;
       } else {
         const geo = new THREE.BoxGeometry(0.4, 0.2, 0.2);
         const mat = new THREE.MeshStandardMaterial({ color: 0xffffff });
@@ -272,7 +475,7 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
       mesh.position.copy(position);
       mesh.position.y = 1.0;
       scene.add(mesh);
-      collectibles.push({ mesh, type });
+      collectibles.push({ mesh, type, clothingItem });
     };
 
     const spawnText = (position: THREE.Vector3, text: string, color: string = '#ffffff') => {
@@ -284,7 +487,61 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
       
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'ru-RU';
+      utterance.rate = 0.9;
       window.speechSynthesis.speak(utterance);
+    };
+
+    // Функция для экипировки одежды на игрока
+    const equipClothing = (clothingItem: ClothingItem) => {
+      // Удаляем старую одежду того же типа
+      if (equippedClothing[clothingItem.type]) {
+        scene.remove(equippedClothing[clothingItem.type]);
+      }
+
+      // Создаём новую одежду
+      const group = new THREE.Group();
+      const geo = new THREE.BoxGeometry(
+        clothingItem.scale.x,
+        clothingItem.scale.y,
+        clothingItem.scale.z
+      );
+      const mat = new THREE.MeshStandardMaterial({ 
+        color: clothingItem.color,
+        roughness: 0.7,
+        metalness: 0.1
+      });
+      const clothingMesh = new THREE.Mesh(geo, mat);
+      group.add(clothingMesh);
+
+      // Позиционируем одежду относительно игрока
+      group.position.set(
+        clothingItem.position.x,
+        clothingItem.position.y,
+        clothingItem.position.z
+      );
+
+      if (clothingItem.rotation) {
+        group.rotation.set(
+          clothingItem.rotation.x,
+          clothingItem.rotation.y,
+          clothingItem.rotation.z
+        );
+      }
+
+      // Добавляем к игроку
+      player.add(group);
+      equippedClothing[clothingItem.type] = group;
+
+      // Озвучиваем сообщение
+      const messages = [
+        `О, нашёл ${clothingItem.name}!`,
+        `Вот ты бомж, нашёл ${clothingItem.name}!`,
+        `${clothingItem.name} - вот это находка!`,
+        `Надену это ${clothingItem.name}!`,
+        `Классно, ${clothingItem.name}! Одеваю!`
+      ];
+      const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+      spawnText(player.position, randomMessage, '#00ff00');
     };
 
     const spawnDebris = (position: THREE.Vector3, color: number, count: number) => {
@@ -324,6 +581,12 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
       osc.stop(audioCtx.currentTime + 0.1);
     };
 
+    // Throwable ashtray system
+    let hasAshtray = true; // Player starts with ashtray
+    let ashtrayInFlight = false;
+    let ashtrayBounces = 0;
+    const maxAshtrayBounces = 3;
+
     const shoot = (type: 'cigarette' | 'ashtray') => {
       const now = performance.now();
       if (now - lastShootTime < 300) return;
@@ -349,54 +612,108 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
         
         scene.add(proj);
         projectiles.push({ mesh: proj, velocity: dir.multiplyScalar(25), type: 'cigarette' });
-      } else if (type === 'ashtray' || (type === 'cigarette' && currentAmmo <= 0)) {
-        // Melee with ashtray
-        if (ashtrayTimer <= 0) {
-          if (!ashtrayMesh) {
-            ashtrayMesh = createAshtray();
-            scene.add(ashtrayMesh);
-          }
-          ashtrayTimer = 0.3; // Attack duration
-          
-          // Check melee hits
-          for (let i = enemies.length - 1; i >= 0; i--) {
-            const e = enemies[i];
-            const dist = player.position.distanceTo(e.position);
-            const hitDist = e.userData.width / 2 + 2.5; // Increased hit range slightly
-            if (dist < hitDist) {
-              let damage = 0;
-              if (e.userData.type === 'dushnila') damage = 5; // One shot dushnila
-              else damage = 1;
-
-              e.userData.hp -= damage;
-              if (e.userData.hp <= 0) {
-                  spawnDebris(e.position, e.userData.color, 15 * Math.ceil(e.userData.width));
-                  spawnText(e.position, "НА ПО БАШКЕ ПЕПЕЛЬНИЦЕЙ!", "#ffaa00");
-                  scene.remove(e);
-                  enemies.splice(i, 1);
-                  scoreCounter += 50;
-                  if (e.userData.type === 'boss') scoreCounter += 1000;
-                  if (e.userData.type === 'dushnila') scoreCounter += 150;
-                  setScore(scoreCounter);
-              } else {
-                  spawnText(e.position, "Н-НА!", "#ffaa00");
-              }
-            }
-          }
+      } else if (type === 'ashtray' && hasAshtray && !ashtrayInFlight) {
+        // Throw ashtray
+        hasAshtray = false;
+        ashtrayInFlight = true;
+        ashtrayBounces = 0;
+        
+        if (!ashtrayMesh) {
+          ashtrayMesh = createAshtray();
+          scene.add(ashtrayMesh);
         }
+        
+        ashtrayMesh.position.copy(player.position);
+        ashtrayMesh.position.y = 1.0;
+        ashtrayMesh.visible = true;
+        
+        // Add to projectiles with bounce capability
+        projectiles.push({ 
+          mesh: ashtrayMesh, 
+          velocity: dir.multiplyScalar(20), 
+          type: 'ashtray' 
+        });
+        
+        spawnText(player.position, "ЛЕТИТ ПЕПЕЛЬНИЦА!", "#ffaa00");
       }
     };
 
     let fireExtinguisherTimer = 0;
     let fireExtinguisherCooldown = 0;
     let gossipTimer = 0;
+    
+    // Обезьяна-поэт
+    let monkeyPoet: THREE.Group | null = null;
+    let monkeyPoetTimer = 0;
+    let monkeyPoetSpawnRate = 30; // Каждые 30 секунд
+    let monkeyPoetActive = false;
+    let monkeyPoetPoemIndex = 0;
 
     let animationFrameId: number;
     let lastTime = performance.now();
     let isGameOver = false;
     let gameOverTimer = 0;
 
-    scene.fog = new THREE.FogExp2(0xcccccc, 0);
+    // Fog removed - no more fog effect
+    
+    // Функция для получения случайной шутки
+    const getRandomJoke = () => {
+      return enemyJokes[Math.floor(Math.random() * enemyJokes.length)];
+    };
+    
+    // Функция для получения следующего стиха обезьяны
+    const getNextMonkeyPoem = () => {
+      const poem = monkeyPoems[monkeyPoetPoemIndex];
+      monkeyPoetPoemIndex = (monkeyPoetPoemIndex + 1) % monkeyPoems.length;
+      return poem;
+    };
+    
+    // Функция для спавна обезьяны-поэта
+    const spawnMonkeyPoet = () => {
+      if (monkeyPoet) {
+        scene.remove(monkeyPoet);
+      }
+      
+      monkeyPoet = createMonkeyPoet();
+      monkeyPoetActive = true;
+      
+      // Обезьяна появляется у стены
+      const side = Math.floor(Math.random() * 4);
+      let startX = 0, startZ = 0;
+      let targetX = 0, targetZ = 0;
+      
+      if (side === 0) { // Север
+        startX = (Math.random() - 0.5) * roomSize;
+        startZ = -roomSize/2 - 2;
+        targetX = startX;
+        targetZ = -roomSize/2 + 2;
+      } else if (side === 1) { // Юг
+        startX = (Math.random() - 0.5) * roomSize;
+        startZ = roomSize/2 + 2;
+        targetX = startX;
+        targetZ = roomSize/2 - 2;
+      } else if (side === 2) { // Запад
+        startX = -roomSize/2 - 2;
+        startZ = (Math.random() - 0.5) * roomSize;
+        targetX = -roomSize/2 + 2;
+        targetZ = startZ;
+      } else { // Восток
+        startX = roomSize/2 + 2;
+        startZ = (Math.random() - 0.5) * roomSize;
+        targetX = roomSize/2 - 2;
+        targetZ = startZ;
+      }
+      
+      monkeyPoet.position.set(startX, 0, startZ);
+      monkeyPoet.userData.targetX = targetX;
+      monkeyPoet.userData.targetZ = targetZ;
+      monkeyPoet.userData.state = 'running'; // running, poeting, leaving
+      monkeyPoet.userData.poemTimer = 0;
+      monkeyPoet.userData.leaveTimer = 0;
+      
+      scene.add(monkeyPoet);
+      showPopup("ОБЕЗЬЯНА-ПОЭТ ПРИБЕЖАЛА!");
+    };
 
     const animate = () => {
       animationFrameId = requestAnimationFrame(animate);
@@ -521,6 +838,9 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
         p.mesh.position.addScaledVector(p.velocity, dt);
         
         let hit = false;
+        let bounce = false;
+        
+        // Check enemy collisions
         for (let j = enemies.length - 1; j >= 0; j--) {
           const e = enemies[j];
           const dx = p.mesh.position.x - e.position.x;
@@ -531,10 +851,25 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
           
           if (distSq < hitRadiusSq) {
             let damage = 0;
-            if (e.userData.type === 'strelok' && p.type === 'cigarette') damage = 1;
-            if (e.userData.type === 'vaper' && p.type === 'lighter') damage = 1;
-            if (e.userData.type === 'boss' && p.type === 'coffee') damage = 1;
-            if (e.userData.type === 'dushnila') {
+            if (p.type === 'ashtray') {
+              // Ashtray does damage to all enemies and bounces
+              damage = 2;
+              bounce = true;
+              ashtrayBounces++;
+              
+              // Calculate bounce direction
+              const normal = new THREE.Vector3(dx, 0, dz).normalize();
+              p.velocity.reflect(normal);
+              p.velocity.multiplyScalar(0.8); // Lose some energy on bounce
+              
+              spawnText(e.position, "БАХ! ПЕПЕЛЬНИЦА!", "#ffaa00");
+            } else {
+              if (e.userData.type === 'strelok' && p.type === 'cigarette') damage = 1;
+              if (e.userData.type === 'vaper' && p.type === 'lighter') damage = 1;
+              if (e.userData.type === 'boss' && p.type === 'coffee') damage = 1;
+            }
+            
+            if (e.userData.type === 'dushnila' && damage > 0) {
                 spawnText(e.position, "А ты знаешь, что капля никотина убивает лошадь?", "#aaaaaa");
             }
             
@@ -548,22 +883,69 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
                         spawnText(e.position, "УВОЛЕН ПО СОБСТВЕННОМУ!", "#ff00ff");
                         scoreCounter += 1000;
                     } else if (e.userData.type === 'vaper') {
-                        spawnText(e.position, "ПАРЮ ГДЕ ХОЧУ!", "#00ffff");
+                        spawnText(e.position, getRandomJoke(), "#00ffff");
                         scoreCounter += 100;
                     } else if (e.userData.type === 'strelok') {
-                        spawnText(e.position, "От души!", "#ff4444");
+                        spawnText(e.position, getRandomJoke(), "#ff4444");
                         scoreCounter += 50;
+                    } else if (e.userData.type === 'dushnila') {
+                        spawnText(e.position, getRandomJoke(), "#888888");
+                        scoreCounter += 150;
                     }
                     scene.remove(e);
                     enemies.splice(j, 1);
                 } else {
-                    spawnText(e.position, "АУЧ!", "#ffffff");
+                    spawnText(e.position, getRandomJoke(), "#ffffff");
                 }
             }
             
-            hit = true;
+            if (p.type !== 'ashtray') {
+              hit = true;
+            }
             setScore(scoreCounter);
-            break;
+            if (!bounce) break;
+          }
+        }
+
+        // Wall bouncing for ashtray
+        if (p.type === 'ashtray' && !hit) {
+          const halfRoom = roomSize / 2;
+          if (Math.abs(p.mesh.position.x) > halfRoom - 1) {
+            p.velocity.x *= -1;
+            p.mesh.position.x = Math.sign(p.mesh.position.x) * (halfRoom - 1);
+            ashtrayBounces++;
+            spawnText(p.mesh.position, "БОМ! ОТСКОК!", "#ffaa00");
+          }
+          if (Math.abs(p.mesh.position.z) > halfRoom - 1) {
+            p.velocity.z *= -1;
+            p.mesh.position.z = Math.sign(p.mesh.position.z) * (halfRoom - 1);
+            ashtrayBounces++;
+            spawnText(p.mesh.position, "БОМ! ОТСКОК!", "#ffaa00");
+          }
+          
+          // Check if ashtray stopped or max bounces reached
+          const speed = p.velocity.length();
+          if (speed < 2 || ashtrayBounces >= maxAshtrayBounces) {
+            // Ashtray stops - create collectible
+            ashtrayInFlight = false;
+            hasAshtray = false;
+            
+            // Create ashtray collectible on ground
+            const ashtrayCollectible = createAshtray();
+            ashtrayCollectible.position.copy(p.mesh.position);
+            ashtrayCollectible.position.y = 0.5;
+            ashtrayCollectible.rotation.x = Math.PI / 6; // Slight tilt
+            scene.add(ashtrayCollectible);
+            
+            collectibles.push({ 
+              mesh: ashtrayCollectible, 
+              type: 'ashtray' 
+            });
+            
+            scene.remove(p.mesh);
+            projectiles.splice(i, 1);
+            spawnText(p.mesh.position, "ПЕПЕЛЬНИЦА ЛЕЖИТ! БЕГИ ЗА НЕЙ!", "#ffaa00");
+            continue;
           }
         }
 
@@ -593,6 +975,64 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
             currentAmmo += 10;
             setAmmo(currentAmmo);
             spawnText(c.mesh.position, "+10 СИГАРЕТ", "#00ff00");
+          } else if (c.type === 'clothing' && c.clothingItem) {
+            // Экипируем одежду
+            equipClothing(c.clothingItem);
+            scoreCounter += 50;
+            clothingCollectedCount++;
+            
+            // Генерируем хвалебную речь каждые 2-3 вещи
+            if (clothingCollectedCount % 2 === 0 || clothingCollectedCount % 3 === 0) {
+              if (time - lastClothingPraise > 10) { // Не чаще чем раз в 10 секунд
+                lastClothingPraise = time;
+                // Асинхронно генерируем хвалебную речь
+                (async () => {
+                  try {
+                    const response = await fetch('https://llm.vidak.wellsoft.pro/v1/chat/completions', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer dummy-key',
+                      },
+                      body: JSON.stringify({
+                        model: 'gpt-3.5-turbo',
+                        messages: [
+                          {
+                            role: 'system',
+                            content: 'Ты комментатор игры. Игрок собрал несколько предметов одежды. Сгенерируй хвалебную речь из двух предложений о том, как хорошо он одевается. Говори на русском языке, будь энтузиастичным.'
+                          },
+                          {
+                            role: 'user',
+                            content: `Игрок собрал ${clothingCollectedCount} предметов одежды. Похвали его.`
+                          }
+                        ],
+                        max_tokens: 100,
+                        temperature: 1.0,
+                      }),
+                    });
+
+                    if (response.ok) {
+                      const data = await response.json();
+                      const praise = data.choices[0]?.message?.content || `Вот это стиль! ${clothingCollectedCount} вещей - ты настоящий модник! Продолжай в том же духе!`;
+                      spawnText(player.position, praise, '#ff00ff');
+                    }
+                  } catch (error) {
+                    const fallbackPraises = [
+                      `Вот это стиль! ${clothingCollectedCount} вещей - ты настоящий модник!`,
+                      `Ого, ты собираешь целый гардероб! ${clothingCollectedCount} вещей!`,
+                      `Ты превращаешься в модную икону! Уже ${clothingCollectedCount} вещей!`,
+                      `Превосходно! Твой гардероб растёт! ${clothingCollectedCount} вещей!`
+                    ];
+                    spawnText(player.position, fallbackPraises[Math.floor(Math.random() * fallbackPraises.length)], '#ff00ff');
+                  }
+                })();
+              }
+            }
+          } else if (c.type === 'ashtray') {
+            // Подбираем пепельницу
+            hasAshtray = true;
+            spawnText(c.mesh.position, "ПЕПЕЛЬНИЦА ПОДОБРАНА! МОЖНО БРОСАТЬ!", "#ffaa00");
+            scoreCounter += 25;
           }
           setScore(scoreCounter);
           scene.remove(c.mesh);
@@ -687,11 +1127,22 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
           }
         }
 
-        if (Math.random() < 0.3) {
-          const type = Math.random() < 0.3 ? 'coffee' : (Math.random() < 0.6 ? 'gossip' : 'ammo');
+        if (Math.random() < 0.4) {
+          const rand = Math.random();
           const cx = (Math.random() - 0.5) * (roomSize - 4);
           const cz = (Math.random() - 0.5) * (roomSize - 4);
-          spawnCollectible(new THREE.Vector3(cx, 1, cz), type);
+          
+          if (rand < 0.2) {
+            // 20% шанс на одежду
+            const clothingItem = getRandomClothing();
+            spawnCollectible(new THREE.Vector3(cx, 1, cz), 'clothing', clothingItem);
+          } else if (rand < 0.4) {
+            spawnCollectible(new THREE.Vector3(cx, 1, cz), 'coffee');
+          } else if (rand < 0.7) {
+            spawnCollectible(new THREE.Vector3(cx, 1, cz), 'gossip');
+          } else {
+            spawnCollectible(new THREE.Vector3(cx, 1, cz), 'ammo');
+          }
         }
       }
 
@@ -748,6 +1199,106 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
           ft.sprite.material.opacity = ft.life / ft.maxLife;
         }
       }
+
+      // Обезьяна-поэт логика
+      monkeyPoetTimer -= dt;
+      if (monkeyPoetTimer <= 0 && !monkeyPoetActive && time > 20) {
+        monkeyPoetTimer = monkeyPoetSpawnRate;
+        spawnMonkeyPoet();
+      }
+      
+      if (monkeyPoet && monkeyPoetActive) {
+        const monkey = monkeyPoet;
+        const state = monkey.userData.state;
+        
+        if (state === 'running') {
+          // Бежит к целевой позиции
+          const targetX = monkey.userData.targetX;
+          const targetZ = monkey.userData.targetZ;
+          const dx = targetX - monkey.position.x;
+          const dz = targetZ - monkey.position.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          
+          if (dist > 0.5) {
+            const speed = 8 * dt;
+            monkey.position.x += (dx / dist) * speed;
+            monkey.position.z += (dz / dist) * speed;
+            monkey.lookAt(targetX, monkey.position.y, targetZ);
+            
+            // Анимация бега
+            monkey.rotation.x = Math.sin(time * 10) * 0.1;
+          } else {
+            // Достигла цели - начинает читать стихи
+            monkey.userData.state = 'poeting';
+            monkey.userData.poemTimer = 0;
+            monkey.userData.isPoeting = true;
+            
+            // Показать стих
+            const poem = getNextMonkeyPoem();
+            spawnText(monkey.position, poem.split('\n')[0], "#8B4513");
+            
+            // Звуковой эффект
+            const utterance = new SpeechSynthesisUtterance(poem);
+            utterance.lang = 'ru-RU';
+            utterance.rate = 0.8;
+            window.speechSynthesis.speak(utterance);
+          }
+        } else if (state === 'poeting') {
+          // Стоит и читает стихи
+          monkey.userData.poemTimer += dt;
+          monkey.rotation.y += dt * 0.5; // Медленно поворачивается
+          
+          // Анимация жестикуляции
+          monkey.position.y = Math.sin(time * 2) * 0.1;
+          
+          // После 5 секунд убегает
+          if (monkey.userData.poemTimer > 5) {
+            monkey.userData.state = 'leaving';
+            monkey.userData.leaveTimer = 0;
+            
+            // Убегает за стену
+            const side = Math.floor(Math.random() * 4);
+            if (side === 0) {
+              monkey.userData.targetX = monkey.position.x;
+              monkey.userData.targetZ = -roomSize/2 - 3;
+            } else if (side === 1) {
+              monkey.userData.targetX = monkey.position.x;
+              monkey.userData.targetZ = roomSize/2 + 3;
+            } else if (side === 2) {
+              monkey.userData.targetX = -roomSize/2 - 3;
+              monkey.userData.targetZ = monkey.position.z;
+            } else {
+              monkey.userData.targetX = roomSize/2 + 3;
+              monkey.userData.targetZ = monkey.position.z;
+            }
+          }
+        } else if (state === 'leaving') {
+          // Убегает
+          const targetX = monkey.userData.targetX;
+          const targetZ = monkey.userData.targetZ;
+          const dx = targetX - monkey.position.x;
+          const dz = targetZ - monkey.position.z;
+          const dist = Math.sqrt(dx * dx + dz * dz);
+          
+          if (dist > 0.5) {
+            const speed = 12 * dt; // Быстрее убегает
+            monkey.position.x += (dx / dist) * speed;
+            monkey.position.z += (dz / dist) * speed;
+            monkey.lookAt(targetX, monkey.position.y, targetZ);
+            
+            // Анимация быстрого бега
+            monkey.rotation.x = Math.sin(time * 15) * 0.15;
+          } else {
+            // Убежала - удаляем
+            scene.remove(monkey);
+            monkeyPoetActive = false;
+            monkeyPoet = null;
+          }
+        }
+      }
+
+      // Случайные шутки для врагов при смерти (добавляем в существующую логику)
+      // Это уже обрабатывается в существующем коде через spawnText
 
       // Camera follow
       camera.position.x = playerX * 0.5;
@@ -837,6 +1388,11 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
 
   return (
     <div className="relative w-full h-full overflow-hidden">
+      {/* Game Guide */}
+      {showGuide && (
+        <GameGuide level={2} onClose={() => setShowGuide(false)} />
+      )}
+      
       <canvas ref={canvasRef} className="absolute inset-0 z-0 w-full h-full block cursor-crosshair" />
       
       {isMobile && (

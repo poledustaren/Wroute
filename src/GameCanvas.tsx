@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
+import { ConversationPopup } from './components/ConversationPopup';
+import GameGuide from './components/GameGuide';
 
 export const inputState = {
   left: false,
@@ -18,16 +20,40 @@ interface GameCanvasProps {
   showPopup: (text: string) => void;
 }
 
+// Улучшенная графика - создание текстур
+const createTexture = (drawFunc: (ctx: CanvasRenderingContext2D) => void, width = 256, height = 256) => {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    drawFunc(ctx);
+  }
+  return new THREE.CanvasTexture(canvas);
+};
+
 const createGoydaSprite = () => {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 128;
   const ctx = canvas.getContext('2d');
   if (ctx) {
-    ctx.fillStyle = '#ff0000';
+    // Градиентный фон
+    const gradient = ctx.createRadialGradient(128, 64, 0, 128, 64, 100);
+    gradient.addColorStop(0, '#ff6600');
+    gradient.addColorStop(0.5, '#ff0000');
+    gradient.addColorStop(1, '#990000');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 256, 128);
+    
+    // Текст с обводкой
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 4;
     ctx.font = 'bold 60px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
+    ctx.strokeText('ГОЙДА', 128, 64);
+    ctx.fillStyle = '#ffffff';
     ctx.fillText('ГОЙДА', 128, 64);
   }
   
@@ -38,12 +64,154 @@ const createGoydaSprite = () => {
   return sprite;
 };
 
+// Создание банана (транспортное средство)
+const createBanana = () => {
+  const group = new THREE.Group();
+  
+  // Тело банана
+  const bananaShape = new THREE.Shape();
+  bananaShape.moveTo(0, 0);
+  bananaShape.quadraticCurveTo(1.5, 0.5, 2, 1.5);
+  bananaShape.quadraticCurveTo(2.2, 2, 1.8, 2.5);
+  bananaShape.quadraticCurveTo(1, 2.8, 0, 2.5);
+  bananaShape.quadraticCurveTo(-0.5, 2, -0.3, 1);
+  bananaShape.quadraticCurveTo(-0.2, 0.5, 0, 0);
+  
+  const extrudeSettings = { depth: 0.8, bevelEnabled: true, bevelThickness: 0.1, bevelSize: 0.1 };
+  const bananaGeo = new THREE.ExtrudeGeometry(bananaShape, extrudeSettings);
+  const bananaMat = new THREE.MeshStandardMaterial({ 
+    color: 0xffdd00,
+    roughness: 0.3,
+    metalness: 0.1
+  });
+  const banana = new THREE.Mesh(bananaGeo, bananaMat);
+  banana.rotation.x = -Math.PI / 2;
+  banana.position.set(-1, 0, -0.4);
+  banana.castShadow = true;
+  group.add(banana);
+  
+  // Пятна на банане
+  const spotGeo = new THREE.CircleGeometry(0.15, 8);
+  const spotMat = new THREE.MeshStandardMaterial({ color: 0x886600 });
+  for (let i = 0; i < 5; i++) {
+    const spot = new THREE.Mesh(spotGeo, spotMat);
+    spot.position.set(
+      Math.random() * 1.5 - 0.5,
+      Math.random() * 0.5 + 0.5,
+      0.41
+    );
+    group.add(spot);
+  }
+  
+  group.userData = { health: 100, maxHealth: 100, type: 'banana' };
+  return group;
+};
+
+// Создание обезьяны (второе транспортное средство)
+const createMonkey = () => {
+  const group = new THREE.Group();
+  
+  // Тело обезьяны
+  const bodyGeo = new THREE.SphereGeometry(0.8, 16, 16);
+  const bodyMat = new THREE.MeshStandardMaterial({ 
+    color: 0x8B4513,
+    roughness: 0.8
+  });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.scale.set(1, 1.2, 0.8);
+  body.position.y = 0.5;
+  body.castShadow = true;
+  group.add(body);
+  
+  // Голова
+  const headGeo = new THREE.SphereGeometry(0.5, 16, 16);
+  const head = new THREE.Mesh(headGeo, bodyMat);
+  head.position.set(0, 1.5, 0.3);
+  head.castShadow = true;
+  group.add(head);
+  
+  // Лицо
+  const faceGeo = new THREE.SphereGeometry(0.35, 16, 16);
+  const faceMat = new THREE.MeshStandardMaterial({ color: 0xDEB887 });
+  const face = new THREE.Mesh(faceGeo, faceMat);
+  face.position.set(0, 1.4, 0.5);
+  group.add(face);
+  
+  // Глаза
+  const eyeGeo = new THREE.SphereGeometry(0.1, 8, 8);
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x000000 });
+  const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+  leftEye.position.set(-0.15, 1.55, 0.7);
+  group.add(leftEye);
+  const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+  rightEye.position.set(0.15, 1.55, 0.7);
+  group.add(rightEye);
+  
+  // Уши
+  const earGeo = new THREE.SphereGeometry(0.2, 8, 8);
+  const leftEar = new THREE.Mesh(earGeo, bodyMat);
+  leftEar.position.set(-0.5, 1.6, 0);
+  group.add(leftEar);
+  const rightEar = new THREE.Mesh(earGeo, bodyMat);
+  rightEar.position.set(0.5, 1.6, 0);
+  group.add(rightEar);
+  
+  // Руки
+  const armGeo = new THREE.CylinderGeometry(0.15, 0.12, 0.8, 8);
+  const leftArm = new THREE.Mesh(armGeo, bodyMat);
+  leftArm.position.set(-0.9, 0.8, 0);
+  leftArm.rotation.z = Math.PI / 4;
+  group.add(leftArm);
+  const rightArm = new THREE.Mesh(armGeo, bodyMat);
+  rightArm.position.set(0.9, 0.8, 0);
+  rightArm.rotation.z = -Math.PI / 4;
+  group.add(rightArm);
+  
+  // Ноги
+  const legGeo = new THREE.CylinderGeometry(0.18, 0.15, 0.6, 8);
+  const leftLeg = new THREE.Mesh(legGeo, bodyMat);
+  leftLeg.position.set(-0.4, -0.3, 0);
+  group.add(leftLeg);
+  const rightLeg = new THREE.Mesh(legGeo, bodyMat);
+  rightLeg.position.set(0.4, -0.3, 0);
+  group.add(rightLeg);
+  
+  // Хвост
+  const tailCurve = new THREE.CatmullRomCurve3([
+    new THREE.Vector3(0, 0.3, -0.6),
+    new THREE.Vector3(0, 0.5, -1),
+    new THREE.Vector3(0.3, 0.8, -1.2),
+    new THREE.Vector3(0.5, 1.2, -1)
+  ]);
+  const tailGeo = new THREE.TubeGeometry(tailCurve, 20, 0.08, 8, false);
+  const tail = new THREE.Mesh(tailGeo, bodyMat);
+  group.add(tail);
+  
+  group.userData = { health: 150, maxHealth: 150, type: 'monkey' };
+  return group;
+};
+
 const createPlayer = (color = 0x333333) => {
   const group = new THREE.Group();
   
+  // Улучшенные материалы
+  const skinMat = new THREE.MeshStandardMaterial({ 
+    color: 0xffccaa,
+    roughness: 0.5,
+    metalness: 0
+  });
+  const hairMat = new THREE.MeshStandardMaterial({ 
+    color: 0x111111,
+    roughness: 0.9
+  });
+  const bodyMat = new THREE.MeshStandardMaterial({ 
+    color: color,
+    roughness: 0.6,
+    metalness: 0.1
+  });
+  
   // Head
   const headGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
-  const skinMat = new THREE.MeshStandardMaterial({ color: 0xffccaa });
   const head = new THREE.Mesh(headGeo, skinMat);
   head.position.y = 2.55;
   head.castShadow = true;
@@ -51,7 +219,6 @@ const createPlayer = (color = 0x333333) => {
 
   // Hair
   const hairGeo = new THREE.BoxGeometry(0.65, 0.2, 0.65);
-  const hairMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
   const hair = new THREE.Mesh(hairGeo, hairMat);
   hair.position.y = 2.9;
   group.add(hair);
@@ -77,7 +244,6 @@ const createPlayer = (color = 0x333333) => {
 
   // Body
   const bodyGeo = new THREE.BoxGeometry(1, 1.2, 0.5);
-  const bodyMat = new THREE.MeshStandardMaterial({ color: color });
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   body.position.y = 1.6;
   body.castShadow = true;
@@ -149,7 +315,11 @@ const createPlayer = (color = 0x333333) => {
 const createDesk = () => {
   const group = new THREE.Group();
   const topGeo = new THREE.BoxGeometry(1.8, 0.1, 1.2);
-  const topMat = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+  const topMat = new THREE.MeshStandardMaterial({ 
+    color: 0x8b4513,
+    roughness: 0.7,
+    metalness: 0.1
+  });
   const top = new THREE.Mesh(topGeo, topMat);
   top.position.y = 1;
   top.castShadow = true;
@@ -182,11 +352,15 @@ const createDesk = () => {
   return group;
 };
 
+// Новые типы врагов
 const createEnemy = () => {
   const group = new THREE.Group();
   
   const bodyGeo = new THREE.BoxGeometry(1.2, 1.4, 0.6);
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x880000 });
+  const bodyMat = new THREE.MeshStandardMaterial({ 
+    color: 0x880000,
+    roughness: 0.6
+  });
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   body.position.y = 1.5;
   body.castShadow = true;
@@ -249,14 +423,90 @@ const createEnemy = () => {
   rightLeg.position.set(0.3, 0.5, 0);
   group.add(rightLeg);
 
-  group.userData = { color: 0x880000 };
+  group.userData = { color: 0x880000, health: 1 };
   return group;
 };
 
+// Босс враг
+const createBossEnemy = () => {
+  const group = new THREE.Group();
+  
+  // Большое тело
+  const bodyGeo = new THREE.BoxGeometry(2, 2.5, 1);
+  const bodyMat = new THREE.MeshStandardMaterial({ 
+    color: 0x440044,
+    roughness: 0.4,
+    metalness: 0.3
+  });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 2;
+  body.castShadow = true;
+  group.add(body);
+
+  // Голова
+  const headGeo = new THREE.BoxGeometry(1.2, 1.2, 1.2);
+  const headMat = new THREE.MeshStandardMaterial({ color: 0xff8888 });
+  const head = new THREE.Mesh(headGeo, headMat);
+  head.position.y = 3.8;
+  head.castShadow = true;
+  group.add(head);
+
+  // Глаза босса
+  const eyeGeo = new THREE.SphereGeometry(0.2, 8, 8);
+  const eyeMat = new THREE.MeshStandardMaterial({ 
+    color: 0xffff00,
+    emissive: 0xffff00,
+    emissiveIntensity: 0.5
+  });
+  const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+  leftEye.position.set(-0.3, 3.9, 0.6);
+  group.add(leftEye);
+  const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+  rightEye.position.set(0.3, 3.9, 0.6);
+  group.add(rightEye);
+
+  // Рога
+  const hornGeo = new THREE.ConeGeometry(0.2, 1, 6);
+  const hornMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+  const leftHorn = new THREE.Mesh(hornGeo, hornMat);
+  leftHorn.position.set(-0.5, 4.8, 0);
+  leftHorn.rotation.z = 0.3;
+  group.add(leftHorn);
+  const rightHorn = new THREE.Mesh(hornGeo, hornMat);
+  rightHorn.position.set(0.5, 4.8, 0);
+  rightHorn.rotation.z = -0.3;
+  group.add(rightHorn);
+
+  // Руки
+  const armGeo = new THREE.BoxGeometry(0.6, 2, 0.6);
+  const leftArm = new THREE.Mesh(armGeo, bodyMat);
+  leftArm.position.set(-1.3, 2, 0);
+  group.add(leftArm);
+  const rightArm = new THREE.Mesh(armGeo, bodyMat);
+  rightArm.position.set(1.3, 2, 0);
+  group.add(rightArm);
+
+  // Ноги
+  const legGeo = new THREE.BoxGeometry(0.7, 1.5, 0.7);
+  const leftLeg = new THREE.Mesh(legGeo, bodyMat);
+  leftLeg.position.set(-0.5, 0.75, 0);
+  group.add(leftLeg);
+  const rightLeg = new THREE.Mesh(legGeo, bodyMat);
+  rightLeg.position.set(0.5, 0.75, 0);
+  group.add(rightLeg);
+
+  group.userData = { color: 0x440044, health: 5, isBoss: true };
+  return group;
+};
+
+// Летающий враг
 const createFlyingEnemy = () => {
   const group = new THREE.Group();
   const bodyGeo = new THREE.BoxGeometry(1, 1, 1);
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0x550055 });
+  const bodyMat = new THREE.MeshStandardMaterial({ 
+    color: 0x550055,
+    roughness: 0.5
+  });
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   group.add(body);
   
@@ -267,11 +517,79 @@ const createFlyingEnemy = () => {
   group.add(wings);
   
   // Eye
-  const eye = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.1), new THREE.MeshStandardMaterial({ color: 0xff0000 }));
+  const eye = new THREE.Mesh(
+    new THREE.BoxGeometry(0.4, 0.4, 0.1), 
+    new THREE.MeshStandardMaterial({ color: 0xff0000 })
+  );
   eye.position.set(0, 0, 0.51);
   group.add(eye);
 
-  group.userData = { hoverOffset: Math.random() * Math.PI * 2, color: 0x550055 };
+  group.userData = { hoverOffset: Math.random() * Math.PI * 2, color: 0x550055, health: 1 };
+  return group;
+};
+
+// Скоростной враг
+const createFastEnemy = () => {
+  const group = new THREE.Group();
+  
+  // Тонкое тело
+  const bodyGeo = new THREE.BoxGeometry(0.6, 1.5, 0.4);
+  const bodyMat = new THREE.MeshStandardMaterial({ 
+    color: 0x00aa00,
+    roughness: 0.3,
+    metalness: 0.2
+  });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.y = 1.2;
+  body.castShadow = true;
+  group.add(body);
+
+  // Голова
+  const headGeo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+  const headMat = new THREE.MeshStandardMaterial({ color: 0x88ff88 });
+  const head = new THREE.Mesh(headGeo, headMat);
+  head.position.y = 2.2;
+  head.castShadow = true;
+  group.add(head);
+
+  // Глаза
+  const eyeGeo = new THREE.BoxGeometry(0.15, 0.08, 0.08);
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+  const pupilMat = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+  
+  const leftEye = new THREE.Mesh(eyeGeo, eyeMat);
+  leftEye.position.set(-0.12, 2.25, 0.26);
+  const leftPupil = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), pupilMat);
+  leftPupil.position.set(0, 0, 0.02);
+  leftEye.add(leftPupil);
+  group.add(leftEye);
+
+  const rightEye = new THREE.Mesh(eyeGeo, eyeMat);
+  rightEye.position.set(0.12, 2.25, 0.26);
+  const rightPupil = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.08, 0.08), pupilMat);
+  rightPupil.position.set(0, 0, 0.02);
+  rightEye.add(rightPupil);
+  group.add(rightEye);
+
+  // Руки (маленькие)
+  const armGeo = new THREE.BoxGeometry(0.2, 0.6, 0.2);
+  const leftArm = new THREE.Mesh(armGeo, bodyMat);
+  leftArm.position.set(-0.4, 1.3, 0);
+  group.add(leftArm);
+  const rightArm = new THREE.Mesh(armGeo, bodyMat);
+  rightArm.position.set(0.4, 1.3, 0);
+  group.add(rightArm);
+
+  // Ноги (длинные)
+  const legGeo = new THREE.BoxGeometry(0.25, 0.8, 0.25);
+  const leftLeg = new THREE.Mesh(legGeo, bodyMat);
+  leftLeg.position.set(-0.15, 0.4, 0);
+  group.add(leftLeg);
+  const rightLeg = new THREE.Mesh(legGeo, bodyMat);
+  rightLeg.position.set(0.15, 0.4, 0);
+  group.add(rightLeg);
+
+  group.userData = { color: 0x00aa00, health: 1, speed: 2 };
   return group;
 };
 
@@ -293,7 +611,7 @@ const createCigarette = () => {
   cherry.position.y = 2.05;
   group.add(cherry);
   
-  group.userData = { jumpOffset: Math.random() * Math.PI * 2, color: 0xffffff };
+  group.userData = { jumpOffset: Math.random() * Math.PI * 2, color: 0xffffff, health: 1 };
   return group;
 };
 
@@ -355,10 +673,21 @@ const createNeuronka = (color: number) => {
   return group;
 };
 
+// Частицы для улучшенной графики
+interface Particle {
+  mesh: THREE.Mesh;
+  velocity: THREE.Vector3;
+  life: number;
+  maxLife: number;
+}
+
 export default function GameCanvas({ gameState, setGameState, setScore, setAmmo, setBuffs, showPopup }: GameCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameStateRef = useRef(gameState);
   const [isMobile, setIsMobile] = useState(false);
+  const [showConversation, setShowConversation] = useState(false);
+  const [conversationCooldown, setConversationCooldown] = useState(false);
+  const [showGuide, setShowGuide] = useState(true);
 
   useEffect(() => {
     gameStateRef.current = gameState;
@@ -370,13 +699,61 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
     return () => window.removeEventListener('resize', checkMobile);
   }, [gameState]);
 
+  // Функция для запуска беседы
+  const startConversation = useCallback(() => {
+    if (!conversationCooldown && gameState === 'playing') {
+      setShowConversation(true);
+      setConversationCooldown(true);
+      
+      // Кулдаун 30 секунд между беседами
+      setTimeout(() => {
+        setConversationCooldown(false);
+      }, 30000);
+    }
+  }, [conversationCooldown, gameState]);
+
+  // Состояние для контекста игры
+  const [gameContext, setGameContext] = useState<{
+    score?: number;
+    recentEvent?: string;
+    isGameOver?: boolean;
+    hasVehicle?: boolean;
+  }>({});
+
+  // Ref для доступа к контексту внутри useEffect
+  const gameContextRef = useRef(gameContext);
+  gameContextRef.current = gameContext;
+
+  // Случайный запуск бесед каждые 20 секунд
+  useEffect(() => {
+    if (gameState !== 'playing') return;
+
+    const scheduleRandomConversation = () => {
+      const delay = 20000; // 20 секунд
+      return setTimeout(() => {
+        if (!conversationCooldown && gameState === 'playing') {
+          startConversation();
+        }
+        scheduleRandomConversation();
+      }, delay);
+    };
+
+    const timeoutId = scheduleRandomConversation();
+    return () => clearTimeout(timeoutId);
+  }, [gameState, conversationCooldown, startConversation]);
+
+  // Функция для обновления контекста игры
+  const updateGameContext = useCallback((context: typeof gameContext) => {
+    setGameContext(context);
+  }, []);
+
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    // Scene setup
+    // Улучшенная настройка сцены
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a1a1a); // Dark office ceiling
-    scene.fog = new THREE.Fog(0x1a1a1a, 20, 80);
+    scene.background = new THREE.Color(0x0a0a15); // Более тёмный фон
+    scene.fog = new THREE.Fog(0x0a0a15, 20, 80);
 
     const camera = new THREE.PerspectiveCamera(
       75,
@@ -394,19 +771,31 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // Мягкие тени
 
-    // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    // Улучшенное освещение
+    const ambientLight = new THREE.AmbientLight(0x404060, 0.5);
     scene.add(ambientLight);
 
-    const dirLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
     dirLight.position.set(5, 15, 5);
     dirLight.castShadow = true;
     dirLight.shadow.camera.top = 30;
     dirLight.shadow.camera.bottom = -30;
     dirLight.shadow.camera.left = -30;
     dirLight.shadow.camera.right = 30;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
     scene.add(dirLight);
+
+    // Дополнительные источники света для атмосферы
+    const pointLight1 = new THREE.PointLight(0xff6600, 0.5, 30);
+    pointLight1.position.set(-5, 8, 0);
+    scene.add(pointLight1);
+
+    const pointLight2 = new THREE.PointLight(0x0066ff, 0.5, 30);
+    pointLight2.position.set(5, 8, 0);
+    scene.add(pointLight2);
 
     // Players
     const player = createPlayer(0x333333);
@@ -419,6 +808,38 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
     
     playerLeft.group.visible = false;
     playerRight.group.visible = false;
+
+    // Транспортные средства
+    let currentVehicle: THREE.Group | null = null;
+    let vehicleHealth = 100;
+    let vehicleType: 'banana' | 'monkey' | null = null;
+    let vehicleBroken = false;
+
+    const spawnVehicle = (type: 'banana' | 'monkey') => {
+      if (currentVehicle) {
+        scene.remove(currentVehicle);
+      }
+      
+      if (type === 'banana') {
+        currentVehicle = createBanana();
+        vehicleHealth = 100;
+      } else {
+        currentVehicle = createMonkey();
+        vehicleHealth = 150;
+      }
+      
+      vehicleType = type;
+      vehicleBroken = false;
+      
+      if (currentVehicle) {
+        currentVehicle.position.copy(player.group.position);
+        currentVehicle.position.y = -0.5;
+        scene.add(currentVehicle);
+      }
+    };
+
+    // Начинаем с банана
+    spawnVehicle('banana');
 
     // Game State Variables
     let playerZ = 0;
@@ -454,6 +875,8 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
     const obstacles: THREE.Group[] = [];
     const enemies: THREE.Group[] = [];
     const flyingEnemies: THREE.Group[] = [];
+    const fastEnemies: THREE.Group[] = [];
+    const bossEnemies: THREE.Group[] = [];
     const cigarettes: THREE.Group[] = [];
     const projectiles: THREE.Sprite[] = [];
     const gramotas: THREE.Group[] = [];
@@ -466,6 +889,9 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
     const shieldBonuses: THREE.Group[] = [];
     const powerGoydaBonuses: THREE.Group[] = [];
     
+    // Частицы
+    const particles: Particle[] = [];
+
     interface Debris {
       mesh: THREE.Mesh;
       velocity: THREE.Vector3;
@@ -498,21 +924,64 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
       }
     };
 
+    // Создание частиц эффекта
+    const spawnParticles = (position: THREE.Vector3, color: number, count: number) => {
+      const geo = new THREE.SphereGeometry(0.1, 4, 4);
+      const mat = new THREE.MeshBasicMaterial({ 
+        color,
+        transparent: true,
+        opacity: 0.8
+      });
+      
+      for (let i = 0; i < count; i++) {
+        const mesh = new THREE.Mesh(geo, mat.clone());
+        mesh.position.copy(position);
+        scene.add(mesh);
+        
+        particles.push({
+          mesh,
+          velocity: new THREE.Vector3(
+            (Math.random() - 0.5) * 10,
+            Math.random() * 10 + 5,
+            (Math.random() - 0.5) * 10
+          ),
+          life: 1.0 + Math.random() * 0.5,
+          maxLife: 1.5
+        });
+      }
+    };
+
     // Procedural Generation
     const generateChunk = (startZ: number) => {
       const chunkGroup = new THREE.Group();
       
-      // Floor (Carpet)
+      // Улучшенный пол (ковёр с текстурой)
       const floorGeo = new THREE.BoxGeometry(roadWidth, 1, chunkLength);
-      const floorMat = new THREE.MeshStandardMaterial({ color: 0x3a4a5a });
+      const floorMat = new THREE.MeshStandardMaterial({ 
+        color: 0x2a3a4a,
+        roughness: 0.9,
+        metalness: 0
+      });
       const floor = new THREE.Mesh(floorGeo, floorMat);
       floor.position.set(0, -0.5, startZ - chunkLength / 2);
       floor.receiveShadow = true;
       chunkGroup.add(floor);
 
-      // Walls
+      // Линии на полу
+      const lineGeo = new THREE.BoxGeometry(0.1, 0.01, chunkLength);
+      const lineMat = new THREE.MeshBasicMaterial({ color: 0x4a5a6a });
+      for (let x = -roadWidth/2 + 1; x < roadWidth/2; x += 2) {
+        const line = new THREE.Mesh(lineGeo, lineMat);
+        line.position.set(x, 0.01, startZ - chunkLength / 2);
+        chunkGroup.add(line);
+      }
+
+      // Стены с улучшенной текстурой
       const wallGeo = new THREE.BoxGeometry(1, 10, chunkLength);
-      const wallMat = new THREE.MeshStandardMaterial({ color: 0xdddddd });
+      const wallMat = new THREE.MeshStandardMaterial({ 
+        color: 0xcccccc,
+        roughness: 0.8
+      });
       
       const leftWall = new THREE.Mesh(wallGeo, wallMat);
       leftWall.position.set(-roadWidth / 2 - 0.5, 4.5, startZ - chunkLength / 2);
@@ -524,19 +993,31 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
       rightWall.receiveShadow = true;
       chunkGroup.add(rightWall);
 
-      // Ceiling
+      // Потолок
       const ceilingGeo = new THREE.BoxGeometry(roadWidth, 1, chunkLength);
       const ceiling = new THREE.Mesh(ceilingGeo, wallMat);
       ceiling.position.set(0, 9.5, startZ - chunkLength / 2);
       chunkGroup.add(ceiling);
 
-      // Lights on ceiling
+      // Улучшенные светильники на потолке
       for (let z = startZ - 5; z > startZ - chunkLength; z -= 10) {
-        const lightGeo = new THREE.BoxGeometry(2, 0.1, 0.5);
-        const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+        const lightGroup = new THREE.Group();
+        
+        // Корпус светильника
+        const fixtureGeo = new THREE.BoxGeometry(2.5, 0.2, 0.8);
+        const fixtureMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const fixture = new THREE.Mesh(fixtureGeo, fixtureMat);
+        lightGroup.add(fixture);
+        
+        // Светящаяся поверхность
+        const lightGeo = new THREE.BoxGeometry(2, 0.05, 0.6);
+        const lightMat = new THREE.MeshBasicMaterial({ color: 0xffffee });
         const light = new THREE.Mesh(lightGeo, lightMat);
-        light.position.set(0, 8.9, z);
-        chunkGroup.add(light);
+        light.position.y = -0.1;
+        lightGroup.add(light);
+        
+        lightGroup.position.set(0, 8.9, z);
+        chunkGroup.add(lightGroup);
       }
 
       scene.add(chunkGroup);
@@ -604,8 +1085,23 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
           scene.add(enemy);
           enemies.push(enemy);
         }
+      } else if (patternRand < 0.55 && time > 40) {
+        // Pattern 4: Boss encounter
+        const boss = createBossEnemy();
+        boss.position.set(0, 0, startZ - chunkLength / 2);
+        scene.add(boss);
+        enemies.push(boss);
+        bossEnemies.push(boss);
+        
+        // Add some minions
+        for (let i = 0; i < 3; i++) {
+          const minion = createEnemy();
+          minion.position.set((i - 1) * 3, 0, startZ - chunkLength / 2 - 5);
+          scene.add(minion);
+          enemies.push(minion);
+        }
       } else {
-        // Pattern 4: Random Scatter (Original logic)
+        // Pattern 5: Random Scatter (Original logic with new enemies)
         const numItems = Math.floor((Math.random() * 3 + 2) * difficultyMultiplier);
         
         for (let i = 0; i < numItems; i++) {
@@ -616,13 +1112,27 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
           if (rand < 0.4) {
             // Enemies
             const enemyTypeRand = Math.random();
-            if (time > 40 && enemyTypeRand < 0.3) {
+            if (time > 50 && enemyTypeRand < 0.2) {
+              // Босс (редко)
+              const boss = createBossEnemy();
+              boss.position.set(xPos, 0, zPos);
+              scene.add(boss);
+              enemies.push(boss);
+              bossEnemies.push(boss);
+            } else if (time > 35 && enemyTypeRand < 0.4) {
+              // Скоростной враг
+              const fast = createFastEnemy();
+              fast.position.set(xPos, 0, zPos);
+              scene.add(fast);
+              enemies.push(fast);
+              fastEnemies.push(fast);
+            } else if (time > 40 && enemyTypeRand < 0.5) {
               const cig = createCigarette();
               cig.position.set(xPos, 0, zPos);
               scene.add(cig);
               cigarettes.push(cig);
-              enemies.push(cig); // Add to general enemies for collision
-            } else if (time > 20 && enemyTypeRand < 0.6) {
+              enemies.push(cig);
+            } else if (time > 20 && enemyTypeRand < 0.7) {
               const fly = createFlyingEnemy();
               fly.position.set(xPos, 3 + Math.random() * 2, zPos);
               scene.add(fly);
@@ -713,6 +1223,9 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
         
         scene.add(proj);
         projectiles.push(proj);
+        
+        // Эффект выстрела
+        spawnParticles(proj.position, 0xff6600, 5);
       };
 
       spawnProjectile(0);
@@ -764,6 +1277,21 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
       osc.stop(audioCtx.currentTime + 0.1);
     };
 
+    // Звук разрушения транспорта
+    const playBreakSound = () => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+      gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      osc.start();
+      osc.stop(audioCtx.currentTime + 0.3);
+    };
+
     interface FloatingText {
       sprite: THREE.Sprite;
       life: number;
@@ -776,18 +1304,27 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
       const ctx = canvas.getContext('2d')!;
       canvas.width = 256;
       canvas.height = 64;
-      ctx.fillStyle = 'white';
-      ctx.font = '24px Arial';
+      
+      // Градиент для текста
+      const gradient = ctx.createLinearGradient(0, 0, 0, 64);
+      gradient.addColorStop(0, '#ffff00');
+      gradient.addColorStop(1, '#ff8800');
+      ctx.fillStyle = gradient;
+      ctx.font = 'bold 24px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText(text, 128, 32);
+      ctx.strokeStyle = '#000000';
+      ctx.lineWidth = 3;
+      ctx.strokeText(text, 128, 40);
+      ctx.fillText(text, 128, 40);
       
       const texture = new THREE.CanvasTexture(canvas);
-      const spriteMat = new THREE.SpriteMaterial({ map: texture });
+      const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
       const sprite = new THREE.Sprite(spriteMat);
       sprite.position.copy(position);
       sprite.position.y += 3;
+      sprite.scale.set(4, 1, 1);
       scene.add(sprite);
-      floatingTexts.push({ sprite, life: 1.0, maxLife: 1.0 });
+      floatingTexts.push({ sprite, life: 1.5, maxLife: 1.5 });
       
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = 'ru-RU';
@@ -802,6 +1339,7 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
       if (dt > 0.1) dt = 0.1;
       lastTime = now;
 
+      // Обновление плавающего текста
       for (let i = floatingTexts.length - 1; i >= 0; i--) {
         const ft = floatingTexts[i];
         ft.life -= dt;
@@ -811,6 +1349,20 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
         } else {
           ft.sprite.position.y += dt * 2;
           ft.sprite.material.opacity = ft.life / ft.maxLife;
+        }
+      }
+
+      // Обновление частиц
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.life -= dt;
+        if (p.life <= 0) {
+          scene.remove(p.mesh);
+          particles.splice(i, 1);
+        } else {
+          p.velocity.y += gravity * dt * 0.5;
+          p.mesh.position.addScaledVector(p.velocity, dt);
+          (p.mesh.material as THREE.MeshBasicMaterial).opacity = (p.life / p.maxLife) * 0.8;
         }
       }
 
@@ -963,6 +1515,18 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
         playerRight.group.position.set(playerX + 1.5, playerY, playerZ);
       }
 
+      // Обновление транспорта
+      if (currentVehicle && !vehicleBroken) {
+        currentVehicle.position.set(playerX, -0.5 + playerY * 0.3, playerZ);
+        currentVehicle.rotation.y = Math.sin(time * 2) * 0.1;
+        
+        // Анимация в зависимости от типа транспорта
+        if (vehicleType === 'monkey') {
+          // Обезьяна качается
+          currentVehicle.rotation.z = Math.sin(time * 3) * 0.05;
+        }
+      }
+
       // Player Animation
       const animatePlayer = (p: { group: THREE.Group, leftArmGroup: THREE.Group, rightArmGroup: THREE.Group, leftLegGroup: THREE.Group, rightLegGroup: THREE.Group }) => {
         if (playerY === 0) {
@@ -1000,6 +1564,18 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
         cig.position.y = Math.abs(Math.sin(time * 5 + cig.userData.jumpOffset)) * 3;
         cig.position.z -= 2 * dt; // Move slightly towards player
       }
+      
+      // Анимация скоростных врагов
+      for (const fast of fastEnemies) {
+        fast.position.z -= 5 * dt; // Двигаются быстрее к игроку
+        fast.rotation.y = Math.sin(time * 10) * 0.2;
+      }
+      
+      // Анимация боссов
+      for (const boss of bossEnemies) {
+        boss.position.y = Math.sin(time * 2) * 0.3;
+        boss.rotation.y = Math.sin(time) * 0.1;
+      }
 
       // Collectibles Animation & Collision
       const checkCollectible = (arr: THREE.Group[], action: () => void) => {
@@ -1022,6 +1598,8 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
             scene.remove(item);
             arr.splice(i, 1);
             action();
+            // Эффект сбора
+            spawnParticles(item.position, 0x00ff00, 10);
           }
         }
       };
@@ -1079,22 +1657,45 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
           
           const hitRadiusSq = (powerGoydaBuffTimer > 0) ? 9 : 2.25; // 3 radius vs 1.5 radius
           
-          if (distSq < hitRadiusSq) { 
-            spawnDebris(e.position, e.userData.color || 0x880000, 20);
-            scene.remove(e);
-            enemies.splice(j, 1);
+          if (distSq < hitRadiusSq) {
+            // Уменьшаем здоровье врага
+            e.userData.health -= p.userData.power || 1;
             
-            // Also remove from specific arrays if needed
-            const flyIdx = flyingEnemies.indexOf(e);
-            if (flyIdx > -1) flyingEnemies.splice(flyIdx, 1);
-            const cigIdx = cigarettes.indexOf(e);
-            if (cigIdx > -1) cigarettes.splice(cigIdx, 1);
-            
-            hit = true;
-            scoreCounter += 50;
-            const newScore = Math.floor(scoreCounter);
-            setScore(newScore);
-            lastReportedScore = newScore;
+            if (e.userData.health <= 0) {
+              spawnDebris(e.position, e.userData.color || 0x880000, 20);
+              spawnParticles(e.position, e.userData.color || 0xff0000, 15);
+              scene.remove(e);
+              enemies.splice(j, 1);
+              
+              // Also remove from specific arrays if needed
+              const flyIdx = flyingEnemies.indexOf(e);
+              if (flyIdx > -1) flyingEnemies.splice(flyIdx, 1);
+              const cigIdx = cigarettes.indexOf(e);
+              if (cigIdx > -1) cigarettes.splice(cigIdx, 1);
+              const fastIdx = fastEnemies.indexOf(e);
+              if (fastIdx > -1) fastEnemies.splice(fastIdx, 1);
+              const bossIdx = bossEnemies.indexOf(e);
+              if (bossIdx > -1) bossEnemies.splice(bossIdx, 1);
+              
+              hit = true;
+              const scoreGain = e.userData.isBoss ? 200 : 50;
+              scoreCounter += scoreGain;
+              const newScore = Math.floor(scoreCounter);
+              setScore(newScore);
+              lastReportedScore = newScore;
+              
+              if (e.userData.isBoss) {
+                spawnFloatingText("БОСС ПОВАЛЕН!", player.group.position);
+              }
+            } else {
+              // Враг ранен - меняем цвет
+              e.traverse((child) => {
+                if (child instanceof THREE.Mesh) {
+                  child.material.emissive = new THREE.Color(0xff0000);
+                  child.material.emissiveIntensity = 0.5;
+                }
+              });
+            }
             break;
           }
         }
@@ -1117,18 +1718,70 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
         return false;
       };
 
-      if (!isGameOver && shieldBuffTimer <= 0 && (checkFatalCollision(obstacles) || checkFatalCollision(enemies))) {
-        isGameOver = true;
-        gameOverTimer = 2.0;
-        spawnDebris(player.group.position, 0x333333, 50);
-        player.group.visible = false;
-        if (pizzaTimer > 0) {
-          spawnDebris(playerLeft.group.position, 0x0033aa, 30);
-          spawnDebris(playerRight.group.position, 0xaa3300, 30);
-          playerLeft.group.visible = false;
-          playerRight.group.visible = false;
+      // Проверка столкновения с транспортом
+      if (currentVehicle && !vehicleBroken) {
+        for (const item of [...obstacles, ...enemies]) {
+          if (checkCollision(currentVehicle, item, 0.3)) {
+            // Транспорт получает урон
+            vehicleHealth -= 25;
+            spawnParticles(currentVehicle.position, 0xffdd00, 10);
+            
+            if (vehicleHealth <= 0) {
+              // Транспорт сломался
+              vehicleBroken = true;
+              playBreakSound();
+              spawnDebris(currentVehicle.position, vehicleType === 'banana' ? 0xffdd00 : 0x8B4513, 30);
+              scene.remove(currentVehicle);
+              
+              if (vehicleType === 'banana') {
+                // Банан сломался - спавним обезьяну
+                spawnFloatingText("Банан сломался! Едем на обезьяне!", player.group.position);
+                spawnVehicle('monkey');
+              } else {
+                // Обезьяна сломалась - игрок пешком
+                spawnFloatingText("Обезьяна устала! Бежим пешком!", player.group.position);
+                currentVehicle = null;
+                vehicleType = null;
+              }
+            } else {
+              spawnFloatingText(`Транспорт: ${vehicleHealth}%`, player.group.position);
+            }
+            break;
+          }
         }
-        return;
+      }
+
+      if (!isGameOver && shieldBuffTimer <= 0 && (checkFatalCollision(obstacles) || checkFatalCollision(enemies))) {
+        // Если есть транспорт, он ломается вместо смерти
+        if (currentVehicle && !vehicleBroken) {
+          vehicleHealth = 0;
+          vehicleBroken = true;
+          playBreakSound();
+          spawnDebris(currentVehicle.position, vehicleType === 'banana' ? 0xffdd00 : 0x8B4513, 30);
+          scene.remove(currentVehicle);
+          
+          if (vehicleType === 'banana') {
+            spawnFloatingText("Банан сломался! Едем на обезьяне!", player.group.position);
+            spawnVehicle('monkey');
+          } else {
+            spawnFloatingText("Обезьяна устала! Бежим пешком!", player.group.position);
+            currentVehicle = null;
+            vehicleType = null;
+          }
+        } else {
+          // Смерть игрока
+          isGameOver = true;
+          gameOverTimer = 2.0;
+          spawnDebris(player.group.position, 0x333333, 50);
+          player.group.visible = false;
+          if (pizzaTimer > 0) {
+            spawnDebris(playerLeft.group.position, 0x0033aa, 30);
+            spawnDebris(playerRight.group.position, 0xaa3300, 30);
+            playerLeft.group.visible = false;
+            playerRight.group.visible = false;
+          }
+          return;
+        }
       }
 
       if (playerZ - 60 < lastGeneratedZ) {
@@ -1154,6 +1807,8 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
       cleanupArray(obstacles);
       cleanupArray(enemies);
       cleanupArray(flyingEnemies);
+      cleanupArray(fastEnemies);
+      cleanupArray(bossEnemies);
       cleanupArray(cigarettes);
       cleanupArray(gramotas);
       cleanupArray(greenNeuronkas);
@@ -1239,6 +1894,11 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
 
   return (
     <div className="relative w-full h-full overflow-hidden">
+      {/* Game Guide */}
+      {showGuide && (
+        <GameGuide level={1} onClose={() => setShowGuide(false)} />
+      )}
+      
       <canvas ref={canvasRef} className="absolute inset-0 z-0 w-full h-full block" />
       
       {isMobile && (
@@ -1261,6 +1921,21 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
             </button>
           </div>
 
+          {/* Top Right: Conversation Button */}
+          <div className="absolute top-10 right-10 pointer-events-auto">
+            <button
+              className={`w-16 h-16 rounded-full border-2 flex items-center justify-center text-white font-bold transition-all ${
+                conversationCooldown 
+                  ? 'bg-gray-500/50 border-gray-500/80 cursor-not-allowed' 
+                  : 'bg-purple-500/50 border-purple-500/80 active:bg-purple-500/80'
+              }`}
+              onClick={startConversation}
+              disabled={conversationCooldown}
+            >
+              <span className="text-2xl">🎲</span>
+            </button>
+          </div>
+
           {/* Bottom Right: Jump */}
           <div className="absolute bottom-10 right-10 pointer-events-auto">
             <button
@@ -1273,6 +1948,31 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
           </div>
         </div>
       )}
+
+      {/* Desktop Conversation Button */}
+      {!isMobile && (
+        <div className="absolute top-4 right-4 z-20">
+          <button
+            className={`px-4 py-2 rounded-lg border-2 flex items-center gap-2 text-white font-bold transition-all ${
+              conversationCooldown 
+                ? 'bg-gray-500/50 border-gray-500/80 cursor-not-allowed' 
+                : 'bg-purple-500/50 border-purple-500/80 hover:bg-purple-500/70'
+            }`}
+            onClick={startConversation}
+            disabled={conversationCooldown}
+          >
+            <span>🎲 Беседа</span>
+            {conversationCooldown && <span className="text-xs">(кулдаун)</span>}
+          </button>
+        </div>
+      )}
+
+      {/* Conversation Popup */}
+      <ConversationPopup
+        isVisible={showConversation}
+        onClose={() => setShowConversation(false)}
+        gameContext={gameContext}
+      />
     </div>
   );
 }
