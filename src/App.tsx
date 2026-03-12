@@ -1,16 +1,18 @@
-import React, { useState, useEffect } from 'react';
-import GameCanvas, { inputState } from './GameCanvas';
-import Level2Canvas, { inputState2 } from './Level2Canvas';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import GameCanvasOptimized from './components/GameCanvasOptimized';
+import Level2Canvas from './Level2Canvas';
 import Level0Canvas from './Level0Canvas';
-import { Play, Skull, ArrowLeft, ArrowRight, ArrowUp, Zap, FileText, Cigarette, MessageSquare } from 'lucide-react';
+import LevelTransition01 from './components/LevelTransition01';
+import { Play, Skull, Zap, MessageSquare } from 'lucide-react';
 
 export default function App() {
-  const [gameState, setGameState] = useState<'menu' | 'playing' | 'playing2' | 'gameover' | 'playing0'>('menu');
+  const [gameState, setGameState] = useState<'menu' | 'playing' | 'playing2' | 'gameover' | 'playing0' | 'transition01'>('menu');
   const [score, setScore] = useState(0);
   const [ammo, setAmmo] = useState(10);
   const [buffs, setBuffs] = useState<string[]>([]);
   const [gameId, setGameId] = useState(0);
   const [popupText, setPopupText] = useState<{text: string, id: number} | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     if (popupText) {
@@ -19,9 +21,18 @@ export default function App() {
     }
   }, [popupText]);
 
-  const showPopup = (text: string) => {
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const showPopup = useCallback((text: string) => {
     setPopupText({ text, id: Date.now() });
-  };
+  }, []);
 
   const startGame = () => {
     setScore(0);
@@ -50,11 +61,18 @@ export default function App() {
     setGameState('playing0');
   };
 
+  const handleTransition01Complete = useCallback(() => {
+    setAmmo(10);
+    setBuffs([]);
+    setGameId(prev => prev + 1);
+    setGameState('playing');
+  }, []);
+
   return (
     <div className="relative w-full h-screen overflow-hidden bg-black text-white font-sans select-none">
       {/* Game Canvas */}
       {gameState === 'playing' && (
-        <GameCanvas 
+        <GameCanvasOptimized 
           key={gameId}
           gameState={gameState} 
           setGameState={setGameState} 
@@ -84,6 +102,24 @@ export default function App() {
           setGameState={setGameState} 
           setScore={setScore}
           score={score}
+        />
+      )}
+
+      {/* Level 0 → Level 1 Transition */}
+      {gameState === 'transition01' && (
+        <LevelTransition01
+          score={score}
+          onComplete={() => {
+            setScore(score);
+            setAmmo(10);
+            setBuffs([]);
+            setGameId(prev => prev + 1);
+            setGameState('playing');
+          }}
+          onSkipToMenu={() => {
+            window.speechSynthesis.cancel();
+            setGameState('menu');
+          }}
         />
       )}
 
@@ -125,7 +161,7 @@ export default function App() {
               onClick={startLevel2}
               className="flex items-center justify-center gap-2 w-full py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 active:scale-95 transition-all"
             >
-              <Cigarette size={20} />
+              <MessageSquare size={20} />
               УРОВЕНЬ 2 (КУРИЛКА)
             </button>
             <button
@@ -141,6 +177,16 @@ export default function App() {
             >
               <MessageSquare size={20} />
               ТЕХПОДДЕРЖКА (УРОВЕНЬ 0)
+            </button>
+            <button
+              onClick={() => {
+                setScore(100);
+                setGameState('transition01');
+              }}
+              className="flex items-center justify-center gap-2 w-full py-4 bg-gradient-to-r from-blue-600 to-emerald-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-emerald-700 active:scale-95 transition-all"
+            >
+              <Zap size={20} />
+              ДЕМО ПЕРЕХОДА
             </button>
           </div>
         </div>

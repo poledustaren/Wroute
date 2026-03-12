@@ -3,8 +3,8 @@ import GameGuide from './components/GameGuide';
 
 interface Level0CanvasProps {
   key?: number | string;
-  gameState: 'menu' | 'playing' | 'playing2' | 'gameover' | 'playing0';
-  setGameState: (state: 'menu' | 'playing' | 'playing2' | 'gameover' | 'playing0') => void;
+  gameState: 'menu' | 'playing' | 'playing2' | 'gameover' | 'playing0' | 'transition01';
+  setGameState: (state: 'menu' | 'playing' | 'playing2' | 'gameover' | 'playing0' | 'transition01') => void;
   setScore: (score: number) => void;
   score: number;
 }
@@ -174,6 +174,8 @@ export default function Level0Canvas({ gameState, setGameState, setScore, score 
   const [messageCount, setMessageCount] = useState(0);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const [showGuide, setShowGuide] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const MAX_INPUT_LENGTH = 200;
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -186,6 +188,7 @@ export default function Level0Canvas({ gameState, setGameState, setScore, score 
 
   const generateNewClientMessage = async () => {
     setIsGenerating(true);
+    setError(null);
     try {
       const response = await fetch('https://llm.vidak.wellsoft.pro/v1/chat/completions', {
         method: 'POST',
@@ -215,13 +218,23 @@ export default function Level0Canvas({ gameState, setGameState, setScore, score 
       const message = data.choices[0]?.message?.content || clientMessages[Math.floor(Math.random() * clientMessages.length)];
       setCurrentClientMessage(message);
     } catch (error) {
+      setError('Ошибка загрузки сообщения');
       setCurrentClientMessage(clientMessages[Math.floor(Math.random() * clientMessages.length)]);
     }
     setIsGenerating(false);
   };
 
   const handleSendInsult = async () => {
-    if (!playerInput.trim() || isGenerating) return;
+    if (!playerInput.trim()) {
+      setError('Введите оскорбление');
+      return;
+    }
+    if (playerInput.length > MAX_INPUT_LENGTH) {
+      setError(`Слишком длинно (макс. ${MAX_INPUT_LENGTH} символов)`);
+      return;
+    }
+    if (isGenerating) return;
+    setError(null);
 
     const newMessage: ChatMessage = {
       id: Date.now(),
@@ -267,7 +280,7 @@ export default function Level0Canvas({ gameState, setGameState, setScore, score 
         }, 2000);
       } else if (newTotalScore >= 100) {
         setTimeout(() => {
-          setGameState('playing');
+          setGameState('transition01');
         }, 2000);
       } else {
         // Генерируем новое сообщение клиента
@@ -362,24 +375,54 @@ export default function Level0Canvas({ gameState, setGameState, setScore, score 
               </div>
 
               {/* Поле ввода */}
-              <div className="flex gap-2 mt-auto">
-                <input
-                  type="text"
-                  value={playerInput}
-                  onChange={(e) => setPlayerInput(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  placeholder="Напиши оскорбление..."
-                  className="flex-1 px-4 py-3 border-2 border-gray-300 rounded focus:border-red-500 focus:outline-none text-base"
-                  disabled={isGenerating}
-                  autoFocus
-                />
-                <button
-                  onClick={handleSendInsult}
-                  disabled={isGenerating || !playerInput.trim()}
-                  className="px-6 py-3 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-400 transition-colors font-bold text-base whitespace-nowrap"
-                >
-                  {isGenerating ? '⏳' : '🔥 ОСКОРБИТЬ'}
-                </button>
+              <div className="mt-auto">
+                {error && (
+                  <div className="text-red-600 text-sm mb-2 font-medium">
+                    {error}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={playerInput}
+                      onChange={(e) => {
+                        setPlayerInput(e.target.value);
+                        setError(null);
+                      }}
+                      onKeyPress={handleKeyPress}
+                      placeholder="Напиши оскорбление..."
+                      className={`w-full px-4 py-3 border-2 rounded focus:outline-none text-base ${
+                        playerInput.length > MAX_INPUT_LENGTH 
+                          ? 'border-red-500 focus:border-red-600' 
+                          : 'border-gray-300 focus:border-red-500'
+                      }`}
+                      disabled={isGenerating}
+                      autoFocus
+                    />
+                    <div className={`absolute right-2 top-1/2 -translate-y-1/2 text-xs ${
+                      playerInput.length > MAX_INPUT_LENGTH ? 'text-red-500' : 'text-gray-400'
+                    }`}>
+                      {playerInput.length}/{MAX_INPUT_LENGTH}
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleSendInsult}
+                    disabled={isGenerating || !playerInput.trim() || playerInput.length > MAX_INPUT_LENGTH}
+                    className={`px-6 py-3 text-white rounded font-bold text-base whitespace-nowrap transition-all ${
+                      isGenerating || !playerInput.trim() || playerInput.length > MAX_INPUT_LENGTH
+                        ? 'bg-gray-400 cursor-not-allowed'
+                        : 'bg-red-600 hover:bg-red-700'
+                    }`}
+                  >
+                    {isGenerating ? (
+                      <span className="inline-flex items-center gap-2">
+                        <span className="animate-spin">⏳</span>
+                        Отправка...
+                      </span>
+                    ) : '🔥 ОСКОРБИТЬ'}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

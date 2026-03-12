@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
-import { ConversationPopup } from './components/ConversationPopup';
+import ConversationPopup from './components/ConversationPopup';
 import GameGuide from './components/GameGuide';
 
 export const inputState = {
@@ -688,6 +688,7 @@ export default function GameCanvas({ gameState, setGameState, setScore, setAmmo,
   const [showConversation, setShowConversation] = useState(false);
   const [conversationCooldown, setConversationCooldown] = useState(false);
   const [showGuide, setShowGuide] = useState(true);
+  const [showConversationPopup, setShowConversationPopup] = useState(false);
 
   useEffect(() => {
     gameStateRef.current = gameState;

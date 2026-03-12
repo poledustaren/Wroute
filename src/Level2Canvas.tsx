@@ -390,7 +390,7 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
     setAmmo(currentAmmo);
     
     const enemies: THREE.Group[] = [];
-    const projectiles: { mesh: THREE.Group | THREE.Mesh, velocity: THREE.Vector3, type: 'cigarette' | 'lighter' | 'coffee' }[] = [];
+    const projectiles: { mesh: THREE.Group | THREE.Mesh, velocity: THREE.Vector3, type: 'cigarette' | 'lighter' | 'coffee' | 'ashtray' }[] = [];
     
     let ashtrayMesh: THREE.Mesh | null = null;
     let ashtrayTimer = 0;
