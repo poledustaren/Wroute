@@ -186,6 +186,17 @@ export default function Level0Canvas({ gameState, setGameState, setScore, score 
     generateNewClientMessage();
   }, []);
 
+  // Check for Level 1 unlock
+  useEffect(() => {
+    if (totalScore >= 100) {
+      // Small delay to let player see the final score
+      const timer = setTimeout(() => {
+        setGameState('transition01');
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [totalScore, setGameState]);
+
   const generateNewClientMessage = async () => {
     setIsGenerating(true);
     setError(null);
@@ -272,22 +283,6 @@ export default function Level0Canvas({ gameState, setGameState, setScore, score 
       });
 
       setScore(newTotalScore);
-
-      // Проверяем переходы уровней
-      if (newTotalScore >= 1000) {
-        setTimeout(() => {
-          setGameState('playing2');
-        }, 2000);
-      } else if (newTotalScore >= 100) {
-        setTimeout(() => {
-          setGameState('transition01');
-        }, 2000);
-      } else {
-        // Генерируем новое сообщение клиента
-        setTimeout(() => {
-          generateNewClientMessage();
-        }, 2000);
-      }
 
       setIsGenerating(false);
     }, 1000);
@@ -440,29 +435,46 @@ export default function Level0Canvas({ gameState, setGameState, setScore, score 
         <div className="absolute top-4 left-4 bg-black/70 text-white p-4 rounded-lg">
           <div className="text-xl font-bold">Очки: {totalScore}</div>
           <div className="text-sm text-gray-300">
-            {totalScore < 100 ? `До уровня 1: ${100 - totalScore}` : 
-             totalScore < 1000 ? `До уровня 2: ${1000 - totalScore}` : 
-             'Максимальный уровень!'}
-          </div>
-          <div className="text-xs text-gray-400 mt-1">
             Сообщений: {messageCount}
           </div>
+          <button
+            onClick={() => setGameState('menu')}
+            className="mt-2 px-3 py-1 bg-red-600 hover:bg-red-700 rounded text-sm font-bold transition-colors"
+          >
+            ← В меню
+          </button>
         </div>
 
         {/* Прогресс бар */}
         <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 w-1/2">
           <div className="bg-gray-700 rounded-full h-4 overflow-hidden">
             <div 
-              className="bg-gradient-to-r from-red-500 to-orange-500 h-full transition-all duration-500"
-              style={{ width: `${Math.min(100, (totalScore % 100))}%` }}
+              className={`h-full transition-all duration-500 ${
+                totalScore >= 100 
+                  ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
+                  : 'bg-gradient-to-r from-red-500 to-orange-500'
+              }`}
+              style={{ width: `${Math.min(100, totalScore >= 100 ? 100 : (totalScore % 100))}%` }}
             ></div>
           </div>
           <div className="text-center text-white text-sm mt-1">
-            {totalScore < 100 ? `Прогресс до уровня 1: ${totalScore % 100}/100` :
-             totalScore < 1000 ? `Прогресс до уровня 2: ${totalScore % 100}/100` :
-             'Переход на уровень 2!'}
+            {totalScore >= 100 
+              ? '✅ Уровень 1 разблокирован! Переход...' 
+              : `Прогресс: ${totalScore % 100}/100`
+            }
           </div>
         </div>
+
+        {/* Level 1 Unlocked Celebration */}
+        {totalScore >= 100 && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-30 animate-fade-in">
+            <div className="bg-gradient-to-br from-green-600 to-emerald-600 text-white p-8 rounded-2xl shadow-2xl text-center animate-bounce">
+              <div className="text-5xl mb-4">🎉</div>
+              <h2 className="text-3xl font-black mb-2">УРОВЕНЬ 1 РАЗБЛОКИРОВАН!</h2>
+              <p className="text-lg">Переход в офис...</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
