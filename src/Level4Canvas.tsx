@@ -632,6 +632,20 @@ export default function Level4Canvas({ setGameState }: any) {
     sun.shadow.mapSize.height = 2048;
     scene.add(sun);
 
+    // Add warm point lights for atmosphere
+    const pointLight1 = new THREE.PointLight(0xff4400, 0.8, 30);
+    pointLight1.position.set(-8, 10, -10);
+    scene.add(pointLight1);
+
+    const pointLight2 = new THREE.PointLight(0xff6600, 0.6, 25);
+    pointLight2.position.set(8, 8, -20);
+    scene.add(pointLight2);
+
+    // Add a rim light for better object definition
+    const rimLight = new THREE.DirectionalLight(0xffaa00, 0.5);
+    rimLight.position.set(-10, 5, 10);
+    scene.add(rimLight);
+
     // Ground - brighter, more saturated
     const groundGeo = new THREE.PlaneGeometry(CONFIG.MAP_WIDTH, CONFIG.MAP_HEIGHT);
     const groundMat = new THREE.MeshStandardMaterial({ 
@@ -653,12 +667,17 @@ export default function Level4Canvas({ setGameState }: any) {
     grid.position.z = -5;
     scene.add(grid);
 
-    // Path visualization
+    // Path visualization - brighter, more visible
     const pathPoints = PATH_WAYPOINTS.map(p => new THREE.Vector3(p.x, 0.05, p.z));
     const pathGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
     const pathLine = new THREE.Line(
       pathGeometry,
-      new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3, transparent: true, opacity: 0.6 })
+      new THREE.LineBasicMaterial({ 
+        color: 0xff3333, // Brighter red
+        linewidth: 5, 
+        transparent: true, 
+        opacity: 0.8 // More opaque
+      })
     );
     scene.add(pathLine);
 
