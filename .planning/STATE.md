@@ -19,11 +19,13 @@ Level 1 Implementation
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 1 | надо починить 1 уровень | 2026-03-13 | fd2204b | [1-1](./quick/1-1/) |
+| 2 | Fix Level 4 bugs and graphics | 2026-03-13 | 7c30d93 | [2-4-3](./quick/2-4-3/) |
 
 ## Last Activity
-2026-03-13 - Completed quick task 1: надо починить 1 уровень
+2026-03-13 - Completed quick task 2: Fixed Level 4 - enemy movement, tower building, 3D model visibility, and improved graphics brightness
 
 ## Next Steps
-1. Test the fix
-2. Verify Level 1 gameplay
-3. Commit the fix
+1. Test Level 4 gameplay in browser
+2. Verify enemies move along path
+3. Verify towers can be built and are visible
+4. Verify bright, vibrant scene lighting
