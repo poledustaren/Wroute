@@ -57,12 +57,12 @@ export default function GameCanvasOptimized({ gameState, setGameState, setScore,
     };
   }, [setScore, setAmmo, setBuffs, setGameState, showPopup]);
 
-  // Start game when gameState changes to 'playing'
+  // Start game when guide closes
   useEffect(() => {
-    if (gameState === 'playing' && engineRef.current) {
+    if (!showGuide && gameState === 'playing' && engineRef.current) {
       engineRef.current.start();
     }
-  }, [gameState]);
+  }, [showGuide, gameState]);
 
   return (
     <div className="relative w-full h-full overflow-hidden">
@@ -70,6 +70,14 @@ export default function GameCanvasOptimized({ gameState, setGameState, setScore,
       {showGuide && (
         <GameGuide level={1} onClose={() => setShowGuide(false)} />
       )}
+      
+      {/* Menu Button */}
+      <button
+        onClick={() => setGameState('menu')}
+        className="absolute top-4 left-4 z-20 px-4 py-2 bg-black/70 hover:bg-red-600 text-white font-bold rounded-lg transition-colors text-sm"
+      >
+        ← В меню
+      </button>
       
       <canvas ref={canvasRef} className="absolute inset-0 z-0 w-full h-full block" />
       

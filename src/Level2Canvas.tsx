@@ -1388,10 +1388,13 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
 
   return (
     <div className="relative w-full h-full overflow-hidden">
-      {/* Game Guide */}
-      {showGuide && (
-        <GameGuide level={2} onClose={() => setShowGuide(false)} />
-      )}
+      {/* Menu Button */}
+      <button
+        onClick={() => setGameState('menu')}
+        className="absolute top-4 left-4 z-20 px-4 py-2 bg-black/70 hover:bg-red-600 text-white font-bold rounded-lg transition-colors text-sm backdrop-blur-sm border border-white/20"
+      >
+        ← В меню
+      </button>
       
       <canvas ref={canvasRef} className="absolute inset-0 z-0 w-full h-full block cursor-crosshair" />
       

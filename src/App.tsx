@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import GameCanvasOptimized from './components/GameCanvasOptimized';
+import Level1Canvas from './components/Level1Canvas';
 import Level2Canvas from './Level2Canvas';
 import Level0Canvas from './Level0Canvas';
+import Level3Canvas from './components/Level3Canvas';
 import LevelTransition01 from './components/LevelTransition01';
-import { Play, Skull, Zap, MessageSquare } from 'lucide-react';
+import { Play, Skull, Zap, MessageSquare, Shield } from 'lucide-react';
 
 export default function App() {
-  const [gameState, setGameState] = useState<'menu' | 'playing' | 'playing2' | 'gameover' | 'playing0' | 'transition01'>('menu');
+  const [gameState, setGameState] = useState<'menu' | 'playing' | 'playing2' | 'gameover' | 'playing0' | 'playing3' | 'transition01'>('menu');
   const [score, setScore] = useState(0);
   const [ammo, setAmmo] = useState(10);
   const [buffs, setBuffs] = useState<string[]>([]);
@@ -61,6 +62,15 @@ export default function App() {
     setGameState('playing0');
   };
 
+  const startLevel3 = () => {
+    setScore(0);
+    setAmmo(0);
+    setBuffs([]);
+    setPopupText(null);
+    setGameId(prev => prev + 1);
+    setGameState('playing3');
+  };
+
   const handleTransition01Complete = useCallback(() => {
     setAmmo(10);
     setBuffs([]);
@@ -72,9 +82,8 @@ export default function App() {
     <div className="relative w-full h-screen overflow-hidden bg-black text-white font-sans select-none">
       {/* Game Canvas */}
       {gameState === 'playing' && (
-        <GameCanvasOptimized 
+        <Level1Canvas 
           key={gameId}
-          gameState={gameState} 
           setGameState={setGameState} 
           setScore={setScore} 
           setAmmo={setAmmo}
@@ -105,17 +114,19 @@ export default function App() {
         />
       )}
 
+      {gameState === 'playing3' && (
+        <Level3Canvas 
+          key={gameId}
+          setGameState={setGameState} 
+          showPopup={showPopup}
+        />
+      )}
+
       {/* Level 0 → Level 1 Transition */}
       {gameState === 'transition01' && (
         <LevelTransition01
           score={score}
-          onComplete={() => {
-            setScore(score);
-            setAmmo(10);
-            setBuffs([]);
-            setGameId(prev => prev + 1);
-            setGameState('playing');
-          }}
+          onComplete={handleTransition01Complete}
           onSkipToMenu={() => {
             window.speechSynthesis.cancel();
             setGameState('menu');
@@ -151,42 +162,56 @@ export default function App() {
           
           <div className="flex flex-col gap-4 w-full max-w-xs">
             <button
+              onClick={startLevel0}
+              className="flex items-center justify-center gap-2 w-full py-4 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 active:scale-95 transition-all"
+            >
+              <MessageSquare size={20} />
+              УРОВЕНЬ 0 - ТЕХПОДДЕРЖКА
+            </button>
+            <button
               onClick={startGame}
               className="flex items-center justify-center gap-2 w-full py-4 bg-white text-black font-bold rounded-xl hover:bg-zinc-200 active:scale-95 transition-all"
             >
               <Play size={20} />
-              СТАРТ ИГРЫ
+              УРОВЕНЬ 1 - КОРИДОР
             </button>
-            <button
+<button
               onClick={startLevel2}
               className="flex items-center justify-center gap-2 w-full py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 active:scale-95 transition-all"
             >
               <MessageSquare size={20} />
-              УРОВЕНЬ 2 (КУРИЛКА)
+              УРОВЕНЬ 2 - КУРИЛКА
+            </button>
+            <button
+              onClick={startLevel3}
+              className="flex items-center justify-center gap-2 w-full py-4 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,0,0,0.3)]"
+            >
+              <Shield size={20} />
+              УРОВЕНЬ 3 - ГОЙДЕР
             </button>
             <button
               onClick={startGame}
               className="flex items-center justify-center gap-2 w-full py-4 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 active:scale-95 transition-all"
             >
               <Zap size={20} />
-              ГОЙДА
+              ГОЙДА!
             </button>
             <button
-              onClick={startLevel0}
-              className="flex items-center justify-center gap-2 w-full py-4 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 active:scale-95 transition-all"
+              onClick={startGame}
+              className="flex items-center justify-center gap-2 w-full py-4 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 active:scale-95 transition-all"
             >
-              <MessageSquare size={20} />
-              ТЕХПОДДЕРЖКА (УРОВЕНЬ 0)
+              <Zap size={20} />
+              ГОЙДА!
             </button>
             <button
               onClick={() => {
                 setScore(100);
                 setGameState('transition01');
               }}
-              className="flex items-center justify-center gap-2 w-full py-4 bg-gradient-to-r from-blue-600 to-emerald-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-emerald-700 active:scale-95 transition-all"
+              className="flex items-center justify-center gap-2 w-full py-4 bg-gradient-to-r from-blue-600 to-emerald-600 text-white font-bold rounded-xl hover:from-blue-700 hover:to-emerald-700 active:scale-95 transition-all text-sm"
             >
               <Zap size={20} />
-              ДЕМО ПЕРЕХОДА
+              ДЕМО ПЕРЕХОДА 0→1
             </button>
           </div>
         </div>
