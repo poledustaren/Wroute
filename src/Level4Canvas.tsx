@@ -598,11 +598,11 @@ export default function Level4Canvas({ setGameState }: any) {
     if (!containerRef.current) return;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x1a0a0a);
-    scene.fog = new THREE.Fog(0x1a0a0a, 20, 60);
+    scene.background = new THREE.Color(0x3d1a1a); // Brighter warm red
+    scene.fog = new THREE.Fog(0x3d1a1a, 20, 60);
 
     const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 25, 15);
+    camera.position.set(0, 20, 12); // Lower height, closer
     camera.lookAt(0, 0, -10);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -611,18 +611,23 @@ export default function Level4Canvas({ setGameState }: any) {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     containerRef.current.appendChild(renderer.domElement);
 
-    // Lighting
-    scene.add(new THREE.AmbientLight(0xffffff, 0.4));
-    const sun = new THREE.DirectionalLight(0xff4400, 0.8);
+    // Lighting - brighter and more vibrant
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7)); // Increased from 0.4
+
+    const sun = new THREE.DirectionalLight(0xffaa44, 1.2); // Brighter, warmer
     sun.position.set(10, 20, 10);
     sun.castShadow = true;
     sun.shadow.mapSize.width = 2048;
     sun.shadow.mapSize.height = 2048;
     scene.add(sun);
 
-    // Ground
+    // Ground - brighter, more saturated
     const groundGeo = new THREE.PlaneGeometry(CONFIG.MAP_WIDTH, CONFIG.MAP_HEIGHT);
-    const groundMat = new THREE.MeshStandardMaterial({ color: 0x2a1a1a, roughness: 0.9, metalness: 0.1 });
+    const groundMat = new THREE.MeshStandardMaterial({ 
+      color: 0x4a2a2a, // Brighter brown-red
+      roughness: 0.8, 
+      metalness: 0.1 
+    });
     const ground = new THREE.Mesh(groundGeo, groundMat);
     ground.rotation.x = -Math.PI / 2;
     ground.position.z = -5;
@@ -631,8 +636,8 @@ export default function Level4Canvas({ setGameState }: any) {
     scene.add(ground);
     groundPlaneRef.current = ground;
 
-    // Grid
-    const grid = new THREE.GridHelper(CONFIG.MAP_WIDTH, Math.floor(CONFIG.MAP_WIDTH / CONFIG.GRID_SIZE), 0x440000, 0x220000);
+    // Grid - brighter red
+    const grid = new THREE.GridHelper(CONFIG.MAP_WIDTH, Math.floor(CONFIG.MAP_WIDTH / CONFIG.GRID_SIZE), 0xaa0000, 0x660000);
     grid.position.y = 0.01;
     grid.position.z = -5;
     scene.add(grid);
