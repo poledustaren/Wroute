@@ -255,10 +255,14 @@ export default function Level4Canvas({ setGameState }: any) {
     const mat = new THREE.MeshStandardMaterial({
       color: config.color,
       emissive: config.color,
-      emissiveIntensity: 0.3,
+      emissiveIntensity: 0.6, // Increased from 0.3
+      roughness: 0.4,
+      metalness: 0.3,
     });
     const mesh = new THREE.Mesh(geo, mat);
+    mesh.visible = true;
     mesh.castShadow = true;
+    mesh.receiveShadow = true;
     return mesh;
   }, []);
 
