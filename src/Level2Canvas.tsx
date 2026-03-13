@@ -402,10 +402,42 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
       scene.add(wall);
     }
 
-    // Игрок
-    const player = createPlayer();
+    // Игрок — заглушка пока грузится модель
+    const player = new THREE.Group();
     player.position.set(0, 0, 0);
     scene.add(player);
+
+    // Загружаем GLTF модель дударя
+    const loader = new GLTFLoader();
+    loader.load(
+      '/models/dudareb/scene.gltf',
+      (gltf) => {
+        const model = gltf.scene;
+
+        // Подгоняем масштаб и ориентацию
+        model.scale.set(0.8, 0.8, 0.8);
+        model.position.set(0, 0, 0);
+        model.rotation.y = Math.PI; // Смотрит вперёд
+
+        // Тени для всех мешей внутри модели
+        model.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            child.castShadow = true;
+            child.receiveShadow = true;
+          }
+        });
+
+        // Удаляем заглушку, добавляем модель
+        player.add(model);
+      },
+      undefined,
+      (err) => {
+        console.error('Ошибка загрузки модели дударя:', err);
+        // Фолбэк — кубик
+        const fallback = createPlayer();
+        player.add(fallback);
+      }
+    );
 
     // Листы бумаги (декор)
     for (let i = 0; i < 15; i++) {
