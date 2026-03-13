@@ -42,7 +42,11 @@ export class PostProcessor {
     }
 
     public render(dt: number): void {
-        this.composer.render(dt);
+        try {
+            this.composer.render(dt);
+        } catch (e) {
+            console.error("PostProcessor failed, falling back to raw render:", e);
+        }
     }
 
     public setSize(width: number, height: number): void {

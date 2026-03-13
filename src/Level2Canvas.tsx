@@ -3,6 +3,9 @@ import * as THREE from 'three';
 import { Joystick } from './components/Joystick';
 import { clothingItems, ClothingItem, getRandomClothing } from './services/clothingService';
 import GameGuide from './components/GameGuide';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { CoreRenderer } from './engine/core/Renderer';
+import { PostProcessor } from './engine/core/PostProcessor';
 
 export const inputState2 = {
   up: false,
@@ -271,6 +274,7 @@ const createMonkeyPoet = () => {
   const tail = new THREE.Mesh(tailGeo, bodyMat);
   group.add(tail);
   
+  // Шлята поэта
   // Шляпа поэта
   const hatBrimGeo = new THREE.CylinderGeometry(0.8, 0.8, 0.1, 16);
   const hatMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
@@ -305,6 +309,18 @@ const createMonkeyPoet = () => {
   return group;
 };
 
+interface Debris {
+  mesh: THREE.Mesh;
+  velocity: THREE.Vector3;
+  life: number;
+}
+
+interface FloatingText {
+  sprite: THREE.Sprite;
+  life: number;
+  maxLife: number;
+}
+
 export default function Level2Canvas({ gameState, setGameState, setScore, setAmmo, setBuffs, showPopup }: Level2CanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameStateRef = useRef(gameState);
@@ -312,86 +328,104 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
   const [selectedWeapon, setSelectedWeapon] = useState<'cigarette' | 'ashtray'>('cigarette');
   const selectedWeaponRef = useRef(selectedWeapon);
   const [showGuide, setShowGuide] = useState(true);
-
-  useEffect(() => {
-    selectedWeaponRef.current = selectedWeapon;
-  }, [selectedWeapon]);
-  
   useEffect(() => {
     gameStateRef.current = gameState;
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768 || 'ontouchstart' in window);
-    };
+  }, [gameState]);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
-  }, [gameState]);
+  }, []);
+  useEffect(() => {
+    selectedWeaponRef.current = selectedWeapon;
+  }, [selectedWeapon]);
 
   useEffect(() => {
     if (!canvasRef.current) return;
 
+    // --- Инициализация Three.js ---
+    const canvas = canvasRef.current;
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xeeeeee);
+    scene.background = new THREE.Color(0x1a1a2e);
+    scene.fog = new THREE.FogExp2(0x1a1a2e, 0);
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(0, 25, 10);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(0, 18, 15);
     camera.lookAt(0, 0, 0);
 
-    const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: true });
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Освещение
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     scene.add(ambientLight);
-
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
     dirLight.position.set(10, 20, 10);
     dirLight.castShadow = true;
-    dirLight.shadow.camera.top = 20;
-    dirLight.shadow.camera.bottom = -20;
-    dirLight.shadow.camera.left = -20;
-    dirLight.shadow.camera.right = 20;
+    dirLight.shadow.mapSize.width = 2048;
+    dirLight.shadow.mapSize.height = 2048;
     scene.add(dirLight);
+    const pointLight1 = new THREE.PointLight(0xff4400, 1.5, 30);
+    pointLight1.position.set(-10, 5, -10);
+    scene.add(pointLight1);
+    const pointLight2 = new THREE.PointLight(0x0044ff, 1.5, 30);
+    pointLight2.position.set(10, 5, 10);
+    scene.add(pointLight2);
 
-    // Room
+    // Комната
     const roomSize = 40;
-    const floorGeo = new THREE.BoxGeometry(roomSize, 1, roomSize);
-    const floorMat = new THREE.MeshStandardMaterial({ color: 0xdddddd });
+    const floorGeo = new THREE.PlaneGeometry(roomSize, roomSize);
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x222233 });
     const floor = new THREE.Mesh(floorGeo, floorMat);
-    floor.position.y = -0.5;
+    floor.rotation.x = -Math.PI / 2;
     floor.receiveShadow = true;
     scene.add(floor);
 
-    const wallMat = new THREE.MeshStandardMaterial({ color: 0xbbbbbb });
-    const wallGeo1 = new THREE.BoxGeometry(roomSize, 4, 1);
-    const wallN = new THREE.Mesh(wallGeo1, wallMat);
-    wallN.position.set(0, 2, -roomSize/2 - 0.5);
-    scene.add(wallN);
-    const wallS = new THREE.Mesh(wallGeo1, wallMat);
-    wallS.position.set(0, 2, roomSize/2 + 0.5);
-    scene.add(wallS);
-    
-    const wallGeo2 = new THREE.BoxGeometry(1, 4, roomSize);
-    const wallE = new THREE.Mesh(wallGeo2, wallMat);
-    wallE.position.set(roomSize/2 + 0.5, 2, 0);
-    scene.add(wallE);
-    const wallW = new THREE.Mesh(wallGeo2, wallMat);
-    wallW.position.set(-roomSize/2 - 0.5, 2, 0);
-    scene.add(wallW);
+    // Стены
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x2a2a3e });
+    const wallConfigs = [
+      { pos: [0, 3, -roomSize/2], rot: [0, 0, 0], size: [roomSize, 6] },
+      { pos: [0, 3, roomSize/2], rot: [0, Math.PI, 0], size: [roomSize, 6] },
+      { pos: [-roomSize/2, 3, 0], rot: [0, Math.PI/2, 0], size: [roomSize, 6] },
+      { pos: [roomSize/2, 3, 0], rot: [0, -Math.PI/2, 0], size: [roomSize, 6] },
+    ];
+    for (const wc of wallConfigs) {
+      const wGeo = new THREE.PlaneGeometry(wc.size[0], wc.size[1]);
+      const wall = new THREE.Mesh(wGeo, wallMat);
+      wall.position.set(wc.pos[0], wc.pos[1], wc.pos[2]);
+      wall.rotation.set(wc.rot[0], wc.rot[1], wc.rot[2]);
+      wall.receiveShadow = true;
+      scene.add(wall);
+    }
 
+    // Игрок
     const player = createPlayer();
+    player.position.set(0, 0, 0);
     scene.add(player);
+
+    // Листы бумаги (декор)
+    for (let i = 0; i < 15; i++) {
+      const paperGeo = new THREE.PlaneGeometry(0.4, 0.5);
+      const paperMat = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+      const paper = new THREE.Mesh(paperGeo, paperMat);
+      paper.position.set((Math.random() - 0.5) * (roomSize - 4), 0.01, (Math.random() - 0.5) * (roomSize - 4));
+      paper.rotation.set(-Math.PI / 2, 0, Math.random() * Math.PI);
+      scene.add(paper);
+    }
 
     let playerX = 0;
     let playerZ = 0;
-    let scoreCounter = 0;
-    let currentAmmo = 30; // Start with 30 cigarettes
-    setAmmo(currentAmmo);
-    
+
     const enemies: THREE.Group[] = [];
-    const projectiles: { mesh: THREE.Group | THREE.Mesh, velocity: THREE.Vector3, type: 'cigarette' | 'lighter' | 'coffee' | 'ashtray' }[] = [];
-    
+    const projectiles: { mesh: THREE.Group | THREE.Mesh; velocity: THREE.Vector3; type: string }[] = [];
+    let currentAmmo = 30;
+    setAmmo(currentAmmo);
+
+    let scoreCounter = 0;
     let ashtrayMesh: THREE.Mesh | null = null;
     let ashtrayTimer = 0;
 
@@ -401,18 +435,7 @@ export default function Level2Canvas({ gameState, setGameState, setScore, setAmm
     let time = 0;
     let bossSpawned = false;
 
-    interface Debris {
-      mesh: THREE.Mesh;
-      velocity: THREE.Vector3;
-      life: number;
-    }
     const debrisList: Debris[] = [];
-
-    interface FloatingText {
-      sprite: THREE.Sprite;
-      life: number;
-      maxLife: number;
-    }
     const floatingTexts: FloatingText[] = [];
 
     const collectibles: { mesh: THREE.Group | THREE.Mesh, type: 'coffee' | 'gossip' | 'ammo' | 'clothing' | 'ashtray', clothingItem?: ClothingItem }[] = [];

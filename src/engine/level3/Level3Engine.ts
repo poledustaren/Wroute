@@ -10,11 +10,11 @@ export interface Level3Config {
 }
 
 const CONFIG = {
-    STARTING_BANANAS: 6,
+    STARTING_BANANAS: 15,
     TOWER_COST: 5,
-    UPGRADE_COST_BASE: 3,
-    COINS_PER_KILL: 2,
-    GRID_SIZE: 1.5,
+    UPGRADE_COST_BASE: 5,
+    BANANAS_PER_KILL: 2,
+    GRID_SIZE: 2,
     PATH_WIDTH: 2.5,
     MAP_WIDTH: 20,
     MAP_HEIGHT: 40,
@@ -49,7 +49,6 @@ export class Level3Engine {
     
     public state = {
         bananas: CONFIG.STARTING_BANANAS,
-        coins: 0,
         wave: 1,
         waveActive: false,
         gameOver: false,
@@ -62,13 +61,16 @@ export class Level3Engine {
 
     private towers: any[] = [];
     private enemies: any[] = [];
+    private projectiles: any[] = [];
+    private vfxTexts: any[] = [];
     private onGameOver: () => void;
     private onStateUpdate: (state: any) => void;
     private showPopup: (text: string) => void;
 
-    private mouse = new THREE.Vector2();
+    private mouse = new THREE.Vector2(-100, -100);
     private raycaster = new THREE.Raycaster();
     private groundPlane: THREE.Mesh | null = null;
+    private hoverCursor: THREE.Mesh | null = null;
     public hoveredCell: { x: number, z: number } | null = null;
 
     constructor(config: Level3Config) {
@@ -91,15 +93,15 @@ export class Level3Engine {
 
     private setupLevel(): void {
         const scene = this.core.scene;
-        scene.background = new THREE.Color(0x330a0a);
-        scene.fog = new THREE.Fog(0x330a0a, 40, 150);
+        scene.background = new THREE.Color(0x444466);
+        scene.fog = new THREE.Fog(0x444466, 50, 200);
 
-        this.core.camera.position.set(0, 25, 15);
-        this.core.camera.lookAt(0, 0, -5);
+        this.core.camera.position.set(0, 35, 30);
+        this.core.camera.lookAt(0, 0, -10);
 
-        // Lights
-        this.core.scene.add(new THREE.AmbientLight(0x404040, 1.5));
-        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.0);
+        // Lights - Much brighter
+        this.core.scene.add(new THREE.AmbientLight(0xffffff, 2.0));
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x888888, 1.5);
         this.core.scene.add(hemiLight);
         
         const dirLight = new THREE.DirectionalLight(0xffffff, 2.0);
@@ -116,8 +118,8 @@ export class Level3Engine {
         // Ground (PBR)
         const groundGeo = new THREE.PlaneGeometry(50, 100);
         const groundMat = new THREE.MeshStandardMaterial({ 
-            color: 0x663333,
-            roughness: 0.6,
+            color: 0x333333,
+            roughness: 0.9,
             metalness: 0.2
         });
         this.groundPlane = new THREE.Mesh(groundGeo, groundMat);
@@ -125,14 +127,29 @@ export class Level3Engine {
         this.groundPlane.receiveShadow = true;
         scene.add(this.groundPlane);
 
-        // Path
-        const pathPoints = PATH_WAYPOINTS.map(p => new THREE.Vector3(p.x, 0.1, p.z));
+        // Path (Glowing Trench)
+        const pathPoints = PATH_WAYPOINTS.map(p => new THREE.Vector3(p.x, 0.05, p.z));
         const pathGeo = new THREE.BufferGeometry().setFromPoints(pathPoints);
-        const pathLine = new THREE.Line(pathGeo, new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 3 }));
+        const pathLine = new THREE.Line(pathGeo, new THREE.LineBasicMaterial({ color: 0xff0000, linewidth: 5 }));
+        const pathGlowBase = new THREE.LineSegments(pathGeo, new THREE.LineBasicMaterial({ color: 0xff0000, transparent: true, opacity: 0.5 }));
         scene.add(pathLine);
+        scene.add(pathGlowBase);
+
+        // Ruins Environment
+        this.generateRuins();
+
+        // Hover Cursor
+        const cursorGeo = new THREE.PlaneGeometry(CONFIG.GRID_SIZE, CONFIG.GRID_SIZE);
+        const cursorMat = new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.5, side: THREE.DoubleSide });
+        this.hoverCursor = new THREE.Mesh(cursorGeo, cursorMat);
+        this.hoverCursor.rotation.x = -Math.PI / 2;
+        this.hoverCursor.position.y = 0.05;
+        this.hoverCursor.visible = false;
+        scene.add(this.hoverCursor);
     }
 
     private onMouseMove = (e: MouseEvent) => {
+        // Must calculate position relative to canvas
         this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
         this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
     };
@@ -177,27 +194,81 @@ export class Level3Engine {
         this.onStateUpdate(this.state);
     }
 
+    private generateRuins() {
+        const ruinsGroup = new THREE.Group();
+        const mat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 1.0 });
+
+        for (let i = 0; i < 60; i++) {
+            const x = (Math.random() - 0.5) * 45;
+            const z = (Math.random() - 0.5) * 90;
+            
+            // Don't spawn on path
+            let nearPath = false;
+            for (const wp of PATH_WAYPOINTS) {
+                if (Math.abs(x - wp.x) < 4 && Math.abs(z - wp.z) < 4) {
+                    nearPath = true;
+                    break;
+                }
+            }
+            if (nearPath) continue;
+
+            const height = Math.random() * 4 + 1;
+            const width = Math.random() * 3 + 1;
+            const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, width), mat);
+            mesh.position.set(x, height / 2, z);
+            mesh.rotation.y = Math.random() * Math.PI;
+            mesh.castShadow = true;
+            mesh.receiveShadow = true;
+            ruinsGroup.add(mesh);
+        }
+
+        // Add some burning barrels
+        for (let i = 0; i < 15; i++) {
+             const x = (Math.random() - 0.5) * 40;
+             const z = (Math.random() - 0.5) * 80;
+             const barrel = new THREE.Mesh(
+                 new THREE.CylinderGeometry(0.4, 0.4, 1.2),
+                 new THREE.MeshStandardMaterial({ color: 0x111111 })
+             );
+             barrel.position.set(x, 0.6, z);
+             ruinsGroup.add(barrel);
+
+             const fire = new THREE.PointLight(0xff5500, 5, 10);
+             fire.position.set(x, 1.5, z);
+             ruinsGroup.add(fire);
+        }
+
+        this.core.scene.add(ruinsGroup);
+    }
+
     private createTowerMesh(mode: string): THREE.Group {
         const group = new THREE.Group();
         const config = (TOWER_TYPES as any)[mode];
         
+        let baseGeo: THREE.BufferGeometry = new THREE.CylinderGeometry(0.8, 1.0, 0.5, 8);
+        let headGeo: THREE.BufferGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+        let headMat = new THREE.MeshStandardMaterial({ color: config.color, emissive: config.color, emissiveIntensity: 2 });
+
+        if (mode === 'stalin') {
+            baseGeo = new THREE.BoxGeometry(1.5, 1.0, 1.5); // Plinth
+            headGeo = new THREE.BoxGeometry(1.2, 1.5, 1.2); // Bust placeholder
+            headMat = new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9 }); // Stone
+        } else if (mode === 'zaza') {
+            baseGeo = new THREE.CylinderGeometry(1.0, 1.2, 0.3, 6);
+            headGeo = new THREE.OctahedronGeometry(0.8); // Crystal
+            headMat = new THREE.MeshStandardMaterial({ color: 0x00ff00, emissive: 0x00aa00, emissiveIntensity: 3, transparent: true, opacity: 0.8 });
+        }
+
         const base = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.6, 0.8, 0.5, 8),
-            new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.8, roughness: 0.2 })
+            baseGeo,
+            new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.5, roughness: 0.8 })
         );
         base.position.y = 0.25;
         base.castShadow = true;
         group.add(base);
 
-        const head = new THREE.Mesh(
-            new THREE.BoxGeometry(0.5, 0.5, 0.5),
-            new THREE.MeshStandardMaterial({ 
-                color: config.color, 
-                emissive: config.color, 
-                emissiveIntensity: 2 
-            })
-        );
-        head.position.y = 1;
+        const head = new THREE.Mesh(headGeo, headMat);
+        head.position.y = mode === 'stalin' ? 1.5 : 1.2;
         head.castShadow = true;
         group.add(head);
         
@@ -225,7 +296,7 @@ export class Level3Engine {
 
         // 1. Raycast for hovered cell
         this.raycaster.setFromCamera(this.mouse, this.core.camera);
-        if (this.groundPlane) {
+        if (this.groundPlane && this.state.placingMode) {
             const intersects = this.raycaster.intersectObject(this.groundPlane);
             if (intersects.length > 0) {
                 const pt = intersects[0].point;
@@ -233,7 +304,16 @@ export class Level3Engine {
                     x: Math.round(pt.x / CONFIG.GRID_SIZE) * CONFIG.GRID_SIZE,
                     z: Math.round(pt.z / CONFIG.GRID_SIZE) * CONFIG.GRID_SIZE,
                 };
+                if (this.hoverCursor) {
+                    this.hoverCursor.position.set(this.hoveredCell.x, 0.05, this.hoveredCell.z);
+                    this.hoverCursor.visible = true;
+                }
+            } else {
+                this.hoveredCell = null;
+                if (this.hoverCursor) this.hoverCursor.visible = false;
             }
+        } else {
+            if (this.hoverCursor) this.hoverCursor.visible = false;
         }
 
         // 2. Update Enemies
@@ -261,8 +341,9 @@ export class Level3Engine {
             if (enemy.hp <= 0) {
                 this.core.scene.remove(enemy.mesh);
                 this.enemies.splice(i, 1);
-                this.state.coins += enemy.reward;
+                this.state.bananas += enemy.reward; // Give bananas instead of invalid coins
                 this.state.enemiesDead++;
+                this.spawnFloatingText(`+${enemy.reward}🍌`, enemy.mesh.position.clone(), 0xffff00);
             }
         }
 
@@ -278,11 +359,54 @@ export class Level3Engine {
                     target.hp -= config.damage;
                     t.lastShot = now;
                     this.createMuzzleFlash(t.x, 1.5, t.z, config.color);
+                    this.createProjectile(t.x, 1.5, t.z, target.mesh.position.x, target.mesh.position.y, target.mesh.position.z, config.color);
+                    this.spawnFloatingText(`-${config.damage}`, target.mesh.position.clone(), 0xff0000);
+                    
+                    if (t.mode === 'stalin') this.shakeCamera(0.5);
                 }
             }
         });
 
-        // 4. Check Wave Completion
+        // 4. Update Projectiles
+        for (let i = this.projectiles.length - 1; i >= 0; i--) {
+            const p = this.projectiles[i];
+            const dx = p.target.x - p.mesh.position.x;
+            const dy = p.target.y - p.mesh.position.y;
+            const dz = p.target.z - p.mesh.position.z;
+            const dist = Math.sqrt(dx*dx + dy*dy + dz*dz);
+            if (dist < 0.5) {
+                this.core.scene.remove(p.mesh);
+                this.projectiles.splice(i, 1);
+            } else {
+                p.mesh.position.x += (dx/dist) * dt * 50;
+                p.mesh.position.y += (dy/dist) * dt * 50;
+                p.mesh.position.z += (dz/dist) * dt * 50;
+            }
+        }
+
+        // 5. Update Floating Texts
+        for (let i = this.vfxTexts.length - 1; i >= 0; i--) {
+            const txt = this.vfxTexts[i];
+            txt.age += dt;
+            txt.mesh.position.y += dt * 2;
+            txt.mesh.material.opacity = 1.0 - (txt.age / 1.0);
+            if (txt.age >= 1.0) {
+                this.core.scene.remove(txt.mesh);
+                this.vfxTexts.splice(i, 1);
+            }
+        }
+
+        // 6. Camera Shake
+        if (this.shakeTime > 0) {
+            this.shakeTime -= dt;
+            const sx = (Math.random() - 0.5) * this.shakeAmt;
+            const sy = (Math.random() - 0.5) * this.shakeAmt;
+            this.core.camera.position.set(this.baseCamPos.x + sx, this.baseCamPos.y + sy, this.baseCamPos.z);
+        } else {
+            this.core.camera.position.copy(this.baseCamPos);
+        }
+
+        // 7. Check Wave Completion
         if (this.state.waveActive && this.enemies.length === 0) {
             this.state.waveActive = false;
             this.state.wave++;
@@ -297,6 +421,47 @@ export class Level3Engine {
         light.position.set(x, y, z);
         this.core.scene.add(light);
         setTimeout(() => this.core.scene.remove(light), 50);
+    }
+
+    private createProjectile(x1: number, y1: number, z1: number, x2: number, y2: number, z2: number, color: number) {
+        const geo = new THREE.BoxGeometry(0.2, 0.2, 0.8);
+        const mat = new THREE.MeshBasicMaterial({ color: color });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(x1, y1, z1);
+        mesh.lookAt(x2, y2, z2);
+        this.core.scene.add(mesh);
+        this.projectiles.push({ mesh, target: new THREE.Vector3(x2, y2, z2) });
+    }
+
+    private shakeTime = 0;
+    private shakeAmt = 0;
+    private baseCamPos = new THREE.Vector3(0, 35, 30);
+
+    private shakeCamera(amount: number) {
+        this.shakeAmt = amount;
+        this.shakeTime = 0.2;
+    }
+
+    // Crude sprite text for WebGL without font loader overhead
+    private spawnFloatingText(text: string, pos: THREE.Vector3, color: number) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 256; canvas.height = 64;
+        const ctx = canvas.getContext('2d')!;
+        ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
+        ctx.font = 'bold 40px Arial';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, 128, 32);
+        
+        const tex = new THREE.CanvasTexture(canvas);
+        const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+        const sprite = new THREE.Sprite(mat);
+        sprite.position.copy(pos);
+        sprite.position.y += 2;
+        sprite.scale.set(4, 1, 1);
+        this.core.scene.add(sprite);
+        
+        this.vfxTexts.push({ mesh: sprite, age: 0 });
     }
 
     public startWave() {
@@ -318,15 +483,30 @@ export class Level3Engine {
         const typeKey = types[Math.floor(Math.random() * types.length)];
         const config = (ENEMIES as any)[typeKey];
         
+        let geo: THREE.BufferGeometry = new THREE.BoxGeometry(config.scale, config.scale, config.scale);
+        
+        if (typeKey === 'iphone') {
+            geo = new THREE.BoxGeometry(config.scale * 0.8, config.scale * 1.5, config.scale * 0.1); // Phone shape
+        } else if (typeKey === 'flag') {
+            geo = new THREE.PlaneGeometry(config.scale * 1.5, config.scale); // Flag shape
+        } else if (typeKey === 'dollar') {
+            geo = new THREE.BoxGeometry(config.scale * 1.2, config.scale * 0.2, config.scale * 0.6); // Stack of cash
+        } else if (typeKey === 'doctor') {
+            geo = new THREE.CylinderGeometry(config.scale * 0.3, config.scale * 0.3, config.scale * 1.5); // Doc shape
+        }
+
         const mesh = new THREE.Mesh(
-            new THREE.BoxGeometry(config.scale, config.scale, config.scale),
+            geo,
             new THREE.MeshStandardMaterial({ 
                 color: config.color, 
                 emissive: config.color, 
-                emissiveIntensity: 0.5 
+                emissiveIntensity: 0.5,
+                side: THREE.DoubleSide
             })
         );
-        mesh.position.set(PATH_WAYPOINTS[0].x, config.scale/2, PATH_WAYPOINTS[0].z);
+        mesh.position.set(PATH_WAYPOINTS[0].x, config.scale, PATH_WAYPOINTS[0].z);
+        if (typeKey === 'flag') mesh.position.y += 1;
+        
         mesh.castShadow = true;
         this.core.scene.add(mesh);
         
@@ -344,7 +524,7 @@ export class Level3Engine {
         const t = this.towers.find(t => t.id === this.state.selectedTowerId);
         if (!t) return;
         const cost = t.level * CONFIG.UPGRADE_COST_BASE;
-        if (this.state.coins < cost) return;
+        if (this.state.bananas < cost) return;
         
         this.core.scene.remove(t.mesh);
         t.mode = mode;
@@ -352,7 +532,7 @@ export class Level3Engine {
         t.mesh = this.createTowerMesh(mode);
         t.mesh.position.set(t.x, 0, t.z);
         this.core.scene.add(t.mesh);
-        this.state.coins -= cost;
+        this.state.bananas -= cost;
         this.onStateUpdate(this.state);
     }
 
