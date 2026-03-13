@@ -207,38 +207,49 @@ export default function Level4Canvas({ setGameState }: any) {
     group.visible = true; // Ensure visibility
     const config = TOWER_TYPES.minigoyder[mode];
 
+    // Base - brighter with some shine
     const baseGeo = new THREE.CylinderGeometry(0.6, 0.8, 0.5, 8);
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.8, roughness: 0.2 });
+    const baseMat = new THREE.MeshStandardMaterial({ 
+      color: 0x555555, // Lighter gray
+      metalness: 0.8, 
+      roughness: 0.2 
+    });
     const base = new THREE.Mesh(baseGeo, baseMat);
     base.position.y = 0.25;
     base.castShadow = true;
+    base.receiveShadow = true;
     group.add(base);
 
+    // Turret - brighter, more glow
     const turretGeo = new THREE.BoxGeometry(0.5, 1.2, 0.5);
     const turretMat = new THREE.MeshStandardMaterial({
       color: config.color,
       metalness: 0.6,
       roughness: 0.3,
       emissive: config.color,
-      emissiveIntensity: 0.2,
+      emissiveIntensity: 0.5, // Increased from 0.2
     });
     const turret = new THREE.Mesh(turretGeo, turretMat);
     turret.position.y = 1.1;
     turret.castShadow = true;
     group.add(turret);
 
+    // Barrel - slightly lighter
     const barrelGeo = new THREE.CylinderGeometry(0.15, 0.15, 0.8, 8);
-    const barrelMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+    const barrelMat = new THREE.MeshStandardMaterial({ 
+      color: 0x333333 // Lighter than 0x111111
+    });
     const barrel = new THREE.Mesh(barrelGeo, barrelMat);
     barrel.rotation.x = Math.PI / 2;
     barrel.position.set(0, 1.3, 0.4);
     group.add(barrel);
 
+    // Range indicator - more visible when shown
     const rangeGeo = new THREE.RingGeometry(config.range - 0.1, config.range, 32);
     const rangeMat = new THREE.MeshBasicMaterial({
       color: config.color,
       transparent: true,
-      opacity: 0,
+      opacity: 0.3, // Slightly more visible
       side: THREE.DoubleSide,
     });
     const rangeMesh = new THREE.Mesh(rangeGeo, rangeMat);
