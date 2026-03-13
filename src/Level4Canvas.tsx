@@ -204,6 +204,7 @@ export default function Level4Canvas({ setGameState }: any) {
   // ========== MESH CREATION ==========
   const createTowerMesh = useCallback((mode: 'base' | 'stalin' | 'zaza'): THREE.Group => {
     const group = new THREE.Group();
+    group.visible = true; // Ensure visibility
     const config = TOWER_TYPES.minigoyder[mode];
 
     const baseGeo = new THREE.CylinderGeometry(0.6, 0.8, 0.5, 8);
@@ -531,7 +532,21 @@ export default function Level4Canvas({ setGameState }: any) {
       };
 
       tower.mesh.position.set(g.hoveredCell.x, 0, g.hoveredCell.z);
+      
+      // Ensure all mesh children are visible
+      tower.mesh.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          child.visible = true;
+          child.updateMatrix();
+          child.updateMatrixWorld();
+        }
+      });
+      
       sceneRef.current?.add(tower.mesh);
+      
+      // Force scene update
+      tower.mesh.updateMatrixWorld(true);
+      
       towersRef.current.push(tower);
 
       g.bananas -= CONFIG.TOWER_COST;
